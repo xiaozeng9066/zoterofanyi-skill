@@ -187,11 +187,11 @@ MIDDLE=$(find "$W/work/mineru" -name "*_middle.json" | head -1)
 
 | 项 | 值 |
 |---|---|
-| 版本 / tag | **v2.11**（网络策略纠错：代理是前置条件；上一版 v2.10 的「直连优先」已作废）；下一版从 **v2.12** 起。公开主库历史从 v2.8 干净初始提交起算，v2.2–v2.7 在私有归档库 |
-| git 仓库 | `~/.workbuddy/skills/zoterofanyi/` 本身（独立仓库，分支 `main`）。**origin = `https://github.com/xiaozeng9066/zoterofanyi-skill.git`（public，公开主库）**；私有归档 `.../zoterofanyi-skill-archive`（含 v2.2–v2.8 完整历史），本地目录 `~/.workbuddy/zoterofanyi-archive` |
+| 版本 / tag | **v2.13**（代理端点候选 + 账户只留一个远端；上一版 v2.12）；下一版从 **v2.14** 起。公开主库历史从 v2.8 干净初始提交起算，v2.2–v2.7 仅存本机 bundle |
+| git 仓库 | `~/.workbuddy/skills/zoterofanyi/` 本身（独立仓库，分支 `main`）。**origin = `https://github.com/xiaozeng9066/zoterofanyi-skill.git`（public，公开主库，账户内唯一远端）**；旧归档库 `.../zoterofanyi-skill-archive` 已于 2026-11-14 删除（本机 bundle 留底） |
 | 云端同步 | `sync_now.py --start / --end / --status`；开工拉、收尾 `iterate_commit.py` 自动推并回读远端 HEAD。GitHub 连接器为 App，建仓 403 / 新仓库 404，**不影响 git 同步**（规则 58） |
 | 网络路由 | `local_config.json` 的 `network` 段：**代理优先**（`mode=proxy-required`，代理内重试 3 次），代理彻底不通才 `fallback=warn` 应急降级并告警；`--route direct` 仅诊断（规则 61） |
-| 工程规则编号 | 1–62，下一条 **63**（v2.11 改写 61「代理是前置条件」，新增 62「用户陈述的环境事实优先于单次探测」） |
+| 工程规则编号 | 1–63，下一条 **64**（v2.13 新增 63「远端唯一化 + 删仓库四步」，并把 61 补上「代理端点会漂移」） |
 | 黄金测试集 | 14 案例，**14/14 PASS**（真源本机实测）；脱敏副本亦 **14/14 PASS + 残留 0 处**（`public_sanitize.py --verify`） |
 | 公开版 | `scripts/public_sanitize.py` 生成 `dist/public`（已 gitignore）；发布指南 `PUBLIC-RELEASE.md`、第 9 节。**私有主库仍是唯一真源，全强度 fixtures 不降级** |
 | 翻译记忆 | 76 条词级纠正 + 9 条整句模式（含 3EHBMRQR / E2HE73V2 / RB7BRXRA 等篇审校纠正） |
@@ -404,7 +404,11 @@ python scripts/sync_now.py --end --strict-proxy     # 代理不通就 BLOCK，�
 ```
 
 - `network.mode = "proxy-required"`（默认）：`sync_now.py` 固定代理优先，
-  代理内重试 **3 次**（退避 1.5s / 3s；502 多为瞬时）。
+  **逐个代理端点**各试 2 次（退避 1.5s；502 多为瞬时）。
+- **代理端点会漂移**（v2.13）：同一天实测 `14126 → 4661 → 7890`。`detect_env.py` 除环境变量外
+  还会扫本机常见代理端口（7890 / 10809 / 1080 / 4661 / 14126 / 8889 / 2080 / 33210，仅 TCP 已监听者），
+  把 `ls-remote` 真的通的写进 `network.proxy_candidates`；`sync_now.py` 按候选逐个试，
+  `--json` 的 `endpoint` 字段告诉你这次实际用了哪个。**换端点仍是走代理**，不是绕过代理。
 - `network.fallback = "warn"`（默认）：代理彻底不通时才应急降级一次「不经代理」，
   并打印 `[WARN]`、`--status` 标「应急降级」、`--json` 记 degraded —— 可见、可追溯，不当常规路径。
   设 `"block"` 则代理不通直接阻断（`--strict-proxy` 等价）。
@@ -478,7 +482,8 @@ cd "$K/dist/public" && git init -b main && git add -A && \
 
 ### 用户选定拓扑 B：公开库作唯一主库（v2.8）
 
-- 旧私有库改名 `zoterofanyi-skill-archive`（仍 private，保留 v2.2–v2.8 完整历史与全强度 fixtures）；
+- 旧私有库改名 `zoterofanyi-skill-archive`（当时仍 private，保留 v2.2–v2.8 完整历史与全强度 fixtures）；
+  **2026-11-14 该库已删除**，删除前 `git bundle` 留底到 `~/.workbuddy/backups/`；
   同名新建**公开**库 `zoterofanyi-skill`，从 `dist/public` **单一干净初始提交**起步（tag v2.8）。
   全局 skill 目录迁到公开版；旧目录移出 `~/.workbuddy/skills/` 作本地归档，避免被识别成第二个 skill。
 - **真实全强度快照放 `fixtures_full/`（gitignored，从归档库复制）**，`fixtures/` 只放合成案例。

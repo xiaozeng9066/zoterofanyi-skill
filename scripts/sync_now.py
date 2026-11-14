@@ -56,8 +56,8 @@ CONFIG = ROOT / "local_config.json"
 # 且必须大声告警、写进报告、标成 degraded，绝不能静默当默认。
 DEFAULT_MODE = "proxy-required"     # 可选 auto（旧行为：谁先通走谁），仅非受限网络使用
 DEFAULT_FALLBACK = "warn"           # 代理彻底不通时：warn=降级直连并告警 / block=直接阻断
-PROXY_ATTEMPTS = 3                  # 代理内重试次数（502 多为瞬时）
-PROXY_BACKOFF = (1.5, 3.0)          # 第 2、3 次重试前的等待秒数
+# v2.13：代理端点会漂移（实测一天内 14126 → 4661 → 7890），所以重试单位是「端点」，
+# 每个端点 2 次、退避 1.5s；换端点仍是走代理，不是绕过代理（常量见 ENDPOINT_*）。
 
 
 class SyncError(Exception):
@@ -101,26 +101,32 @@ def git_retry(*args: str, attempts: int | None = None, delay: float | None = Non
     应急降级一定会打印 [WARN] 并把本次标记为 degraded，不许静默当成正常路径。
     """
     last: subprocess.CompletedProcess | None = None
-    for idx, (route, tries, waits) in enumerate(route_plan()):
+    plan = route_plan()
+    for idx, (route, endpoint, tries, waits) in enumerate(plan):
         if route == "direct" and idx > 0:
-            print("[WARN] 代理重试均失败，本次临时改走「不经代理」路径："
-                  "国内环境不可依赖，属应急降级；请尽快修好代理。")
+            print("[WARN] 所有代理端点均失败，本次临时改走「不经代理」路径："
+                  "国内环境不可依赖，属应急降级；请尽快修好代理（端口/节点/进程）。")
             _DEGRADED[0] = True
-        if attempts:
-            tries = max(tries, attempts) if route == "proxy" else attempts
+        label = f"代理 {_port_of(endpoint)}" if route == "proxy" else "直连"
+        if attempts and route == "proxy":
+            tries = max(tries, attempts)
         for i in range(tries):
-            proc = git(*args, route=route, **kw)
+            proc = git(*args, route=route, endpoint=endpoint, **kw)
             last = proc
             if proc.returncode == 0 or not NET_ERR_RE.search(out(proc)):
                 _LAST_ROUTE[0] = route
+                _LAST_ENDPOINT[0] = endpoint
+                if route == "proxy" and idx > 0:
+                    print(f"[INFO] 前面的代理端点不通，已换到 {_port_of(endpoint)}（仍是走代理）")
                 return proc
             if i < tries - 1:
                 wait = (waits[i] if i < len(waits) else (waits[-1] if waits else 1.5))
                 if delay:
                     wait = delay
-                print(f"[WARN] {'代理' if route == 'proxy' else '直连'} "
-                      f"第 {i + 1}/{tries} 次失败（{_short_err(proc)}），{wait:g}s 后重试")
+                print(f"[WARN] {label} 第 {i + 1}/{tries} 次失败（{_short_err(proc)}），{wait:g}s 后重试")
                 time.sleep(wait)
+        if route == "proxy" and idx + 1 < len(plan) and plan[idx + 1][0] == "proxy":
+            print(f"[WARN] {label} 不通，换下一个代理端点（不是绕过代理）")
     return last  # type: ignore[return-value]
 
 
@@ -136,87 +142,127 @@ def load_network() -> dict:
 
 _ROUTE_OVERRIDE: list[str | None] = [None]
 _LAST_ROUTE: list[str | None] = [None]   # 记录本次实际成功的路由，供 --status 显示
+_LAST_ENDPOINT: list[str | None] = [None]  # 本次实际成功的代理端点（v2.13）
 _DEGRADED: list[bool] = [False]          # 本次是否发生过「绕过代理」的应急降级（规则 61）
 _FORCED_FALLBACK: list[str | None] = [None]   # --strict-proxy 的运行时覆盖
 
+# v2.13：本机代理软件端口会漂移（实测一天内 14126 → 4661 → 7890），
+# 端口死了 ≠ 代理不可用。换端点仍是走代理，不是绕过代理。
+ENDPOINT_ATTEMPTS = 2
+ENDPOINT_BACKOFF = (1.5,)
+
+
+def proxy_endpoints() -> list[str]:
+    """代理端点候选，**全部是代理**，绝不含直连。
+
+    顺序：`local_config.network.proxy_candidates`（detect_env.py 实测可用的排前面）
+    → 环境变量 HTTPS_PROXY。去重保序。
+    """
+    net = load_network()
+    env = ((net.get("proxy_env") or {}).get("https_proxy")
+           or os.environ.get("HTTPS_PROXY") or os.environ.get("https_proxy"))
+    ordered: list[str] = []
+    for item in (net.get("proxy_candidates") or []):
+        url = item.get("url") if isinstance(item, dict) else item
+        if isinstance(url, str) and url.strip():
+            ordered.append(url.strip())
+    if env:
+        ordered.append(env.strip())
+    seen: set[str] = set()
+    uniq: list[str] = []
+    for url in ordered:
+        if url not in seen:
+            seen.add(url)
+            uniq.append(url)
+    return uniq
+
+
+def _port_of(endpoint: str | None) -> str:
+    """把代理 URL 压成 host:port 便于日志阅读（不含任何凭据）。"""
+    if not endpoint:
+        return "?"
+    return re.sub(r"^[a-z]+://", "", endpoint).rstrip("/")
+
 
 def net_policy() -> dict:
-    """本机网络政策：mode / fallback / proxy / force（全部来自 local_config.json）。"""
+    """本机网络政策：mode / fallback / proxies / force（全部来自 local_config.json）。"""
     net = load_network()
     mode = net.get("mode") if net.get("mode") in ("proxy-required", "auto") else DEFAULT_MODE
     fallback = (net.get("fallback") if net.get("fallback") in ("warn", "block") else DEFAULT_FALLBACK)
     if _FORCED_FALLBACK[0]:
         fallback = _FORCED_FALLBACK[0]
-    proxy = ((net.get("proxy_env") or {}).get("https_proxy")
-             or os.environ.get("HTTPS_PROXY") or os.environ.get("https_proxy"))
+    proxies = proxy_endpoints()
     force = net.get("force") if net.get("force") in ("direct", "proxy") else None
-    return {"mode": mode, "fallback": fallback, "proxy": proxy, "force": force}
+    return {"mode": mode, "fallback": fallback, "proxies": proxies,
+            "proxy": proxies[0] if proxies else None, "force": force}
 
 
-def route_args(route: str = "auto") -> list[str]:
+def route_args(route: str = "auto", endpoint: str | None = None) -> list[str]:
     """把路由选择变成 git 的 -c 参数，插在子命令之前（显式覆盖 env 与全局配置）。"""
     if route == "direct":
         return ["-c", "http.proxy=", "-c", "https.proxy="]
     if route == "proxy":
-        proxy = net_policy()["proxy"]
+        proxy = endpoint or net_policy()["proxy"]
         if proxy:
             return ["-c", f"http.proxy={proxy}", "-c", f"https.proxy={proxy}"]
     return []
 
 
-def route_plan() -> list[tuple[str, int, tuple]]:
-    """执行计划：[(路由, 尝试次数, 退避秒数)]。
+def route_plan() -> list[tuple[str, str | None, int, tuple]]:
+    """执行计划：[(路由, 代理端点, 尝试次数, 退避秒数)]。
 
-    默认（proxy-required）：代理重试 3 次 → 仍不通且 fallback=warn 才应急降级一次；
-    fallback=block、或 --strict-proxy 时**没有**第二段，代理不通即失败（规则 61）。
-    auto 模式才恢复 v2.10 的「谁探测通走谁」旧行为。
+    proxy-required（默认）：逐个代理端点试（每端点 2 次，退避 1.5s）→ 全部失败且
+    `fallback=warn` 才应急降级一次直连；`fallback=block` / `--strict-proxy` 时没有第二段。
+    **换代理端口仍然是走代理**，只有最后那段 `direct` 才算绕过（规则 61）。
+    auto 模式才恢复 v2.10 的「谁探测通走谁」。
     """
     pol = net_policy()
-    proxy = bool(pol["proxy"])
-    override = _ROUTE_OVERRIDE[0]
-    forced = override or pol["force"]
-    if forced in ("proxy", "direct"):
-        if forced == "proxy" and proxy:
-            return [("proxy", PROXY_ATTEMPTS, PROXY_BACKOFF)]
-        if forced == "direct":
-            return [("direct", 1, ())]
-        return [("proxy", PROXY_ATTEMPTS, PROXY_BACKOFF)] if proxy else [("direct", 1, ())]
-    if pol["mode"] == "auto":
-        chosen = load_network().get("chosen")
-        first = "proxy" if (proxy and chosen != "direct") else ("direct" if not proxy or chosen == "direct" else "proxy")
-    else:
-        first = "proxy" if proxy else "direct"
-    plan: list[tuple[str, int, tuple]] = [
-        (first, PROXY_ATTEMPTS if first == "proxy" else 1,
-         PROXY_BACKOFF if first == "proxy" else ()) ]
-    if first == "proxy" and pol["fallback"] != "block":
-        plan.append(("direct", 1, ()))
+    proxies = pol["proxies"]
+    forced = _ROUTE_OVERRIDE[0] or pol["force"]
+
+    def proxy_segment() -> list[tuple[str, str | None, int, tuple]]:
+        return [("proxy", url, ENDPOINT_ATTEMPTS, ENDPOINT_BACKOFF) for url in proxies]
+
+    if forced == "direct":
+        return [("direct", None, 1, ())]
+    if forced == "proxy":
+        return proxy_segment() or [("direct", None, 1, ())]
+    if pol["mode"] == "auto" and load_network().get("chosen") == "direct":
+        return [("direct", None, 1, ())] + proxy_segment()
+    plan = proxy_segment()
+    if not plan:
+        return [("direct", None, 1, ())]
+    if pol["fallback"] != "block":
+        plan.append(("direct", None, 1, ()))
     return plan
 
 
 def route_candidates() -> list[str]:
     """兼容旧调用：只要路由顺序。"""
-    return [route for route, _, _ in route_plan()]
+    return [route for route, _, _, _ in route_plan()]
 
 
 def route_desc() -> str:
     pol = net_policy()
     used = _LAST_ROUTE[0]
     if used == "proxy":
-        return f"走代理 {pol['proxy'] or 'HTTPS_PROXY'}（代理内已重试 {PROXY_ATTEMPTS} 次可用）"
+        ep = _LAST_ENDPOINT[0] or pol["proxy"]
+        extra = f"（候选 {len(pol['proxies'])} 个端点，每端点重试 {ENDPOINT_ATTEMPTS} 次）"
+        return f"走代理 {_port_of(ep)}{extra}"
     if used == "direct":
         if pol["mode"] == "proxy-required":
             return ("不经代理（⚠ 应急降级：国内环境不可依赖，本次不是正常路径；请修代理）"
                     + ("［诊断模式］" if _ROUTE_OVERRIDE[0] == "direct" else ""))
         return "不经代理（auto 模式按探测结果选择）"
     tail = ("；彻底不通时应急降级并告警" if pol["fallback"] != "block" else "；不通即 BLOCK")
-    return f"代理优先 {pol['proxy'] or '（未设置 HTTPS_PROXY）'}，代理内重试 {PROXY_ATTEMPTS} 次{tail}"
+    eps = "、".join(_port_of(u) for u in pol["proxies"]) or "（未配置代理）"
+    return f"代理优先 {eps}，每端点重试 {ENDPOINT_ATTEMPTS} 次{tail}"
 
 
 def git(*args: str, check: bool = True, timeout: int = 90,
-        route: str = "auto") -> subprocess.CompletedProcess:
+        route: str = "auto", endpoint: str | None = None) -> subprocess.CompletedProcess:
     proc = subprocess.run(
-        ["git", "-C", str(ROOT), *route_args(route), *args],
+        ["git", "-C", str(ROOT), *route_args(route, endpoint), *args],
         capture_output=True, text=True, encoding="utf-8", errors="replace", timeout=timeout,
     )
     if check and proc.returncode != 0:
@@ -518,6 +564,7 @@ def main() -> int:
                 info = snapshot(ok)
                 info["json"] = True
                 info["route"] = _LAST_ROUTE[0]
+                info["endpoint"] = _LAST_ENDPOINT[0]   # v2.13：实际用的代理端点
                 info["degraded"] = _DEGRADED[0]   # 本次是否绕过代理（v2.11 声称、v2.12 补齐）
                 info["remote_head"] = (remote_head_sha() or "")[:12] if ok else None
                 print(json.dumps(info, ensure_ascii=False, indent=2))

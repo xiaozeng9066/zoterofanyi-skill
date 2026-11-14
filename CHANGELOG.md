@@ -7,6 +7,48 @@
 > **本库为公开主库（v2.8 起，拓扑 B）**：历史从 v2.8 干净初始提交起算；
 > v2.2–v2.7 的完整迭代史在私有归档库 `xiaozeng9066/zoterofanyi-skill-archive`。
 
+## v2.13 — 2026-11-14 · 代理端点候选（端口漂移自适应）+ 账户只留一个远端（规则 61 补强、新增规则 63）
+
+**背景（两件事）**
+
+1. 用户要求「GitHub 上其他仓库都删掉，只保留这个」。账户原有 5 个，删了 4 个
+   （`test` / `DSUR` / `occupational-health-review` / `zoterofanyi-skill-archive`），
+   删除前把 archive 库 `git bundle --all` 留底（696 KB / 7 个 tag）到 `~/.workbuddy/backups/`。
+2. 删完复核时发现同步突然全断：环境变量 `HTTPS_PROXY` 已从 `127.0.0.1:14126` 漂到 `:4661`，
+   而 4661 对 `github.com:443` 的 CONNECT 稳定 502，真正能用的是 `:7890`。
+   同刻实测「不经代理」也是 FAIL（21s 超时）—— **这次是硬证据：直连确实不通，用户判断正确。**
+
+**指标实测**
+
+- **准确**：`detect_env.py` 新增 `probe_proxy_candidates()`：主端点先测，不通才扫本机常见代理端口
+  （仅 TCP 已监听者做 `ls-remote` 验证），结果写 `network.proxy_candidates`（可用在前、按耗时排序）。
+  `sync_now.py` 的 `route_plan()` 改为「逐个端点 × 2 次」，`--json` 增加 `endpoint` 字段。
+- **少错**：实测 4661 FAIL 19.6s → 自动落到 7890 → `--status` 5.1s 成功；
+  输出明确写「换下一个代理端点（不是绕过代理）」，避免把换端口误读成绕代理。
+- **速度**：单次 status 5.1s（此前坏端口要 3×90s 超时才降级）；探测一次约 45s，只在 `detect_env` 跑。
+- **成本**：纯脚本/文档改动，无流水线开销。
+
+**改动文件**
+
+- `scripts/sync_now.py`：`proxy_endpoints()` / `_port_of()` / `net_policy()`（新增 `proxies`）、
+  `route_plan()` 改四元组（路由, 端点, 次数, 退避）、`git()` 支持 `endpoint`、
+  `git_retry()` 端点级重试与换端点提示、`route_desc()`、`--json` 加 `endpoint`。
+- `scripts/detect_env.py`：`DEFAULT_PROXY_PORTS`、`_port_open()`、`_port_label()`、
+  `probe_proxy_candidates()`，`network.proxy_candidates` 与「可用代理端点」人读输出。
+- `templates/local_config.template.json`：`network.proxy_candidates`。
+- `SKILL.md` 规则 61 补「端点漂移」段 + 新增规则 63；`WORKBUDDY-ADAPTER.md` 规则编号表、
+  第 8 节网络小节、拓扑段；`PUBLIC-NOTICE.md` / `PUBLIC-RELEASE.md`：archive 库改为「已删除 + 本机 bundle」。
+
+**学到的东西**
+
+1. **环境会自己变**：一天之内代理端口换了两次。把「端口」写成固定值的东西迟早会坏，
+   要么探测、要么候选列表——静态配置要留冗余。
+2. **删除前留底的成本极低，收益极高**：696 KB 的 bundle 换回「随时可恢复 v2.2–v2.8 全史」。
+   不可逆操作的正确姿势不是「小心一点」，而是「留一条退路」。
+3. 用户说「我不会删」时，正确的交付不是命令清单，而是**把权限路径也准备好**：
+   查清 GCM 的 OAuth 拿不到 `delete_repo`（固定 scopes、不支持自定义），改用最小权限 PAT，
+   token 走本地文件、不进聊天、用完即删——**给方案，也给边界**。
+
 ## v2.12 — 2026-11-14 · 补齐 `--json` 的 `route` / `degraded`（v2.11 声称未落地）
 
 **背景**：v2.11 的 CHANGELOG 写了「`--json` 记 degraded」，实际只改了人读输出，JSON 里没有这两个字段 ——

@@ -571,15 +571,19 @@ Dimitrov 2026（19 页 / 11 图 3 表；翻译 11 块 + 审校 12 块；共 353 
       一次「代理 200 / 直连也 200」）；而且若本机装了系统级 TUN / 透明代理，
       `-c http.proxy=` 只是名义上绕开代理、实际仍被中转 —— 拿它当选路依据等于自欺。
     - 落地：`local_config.json` 的 `network` 段为 `mode: proxy-required` + `fallback: warn|block`。
-      `sync_now.py` 固定「代理优先 → 代理内重试 3 次（退避 1.5s / 3s）→ 只有 `fallback=warn`
+      `sync_now.py` 固定「代理优先 → 逐个代理端点重试（每端点 2 次，退避 1.5s）→ 只有 `fallback=warn`
       才应急降级直连」；降级时必打印 `[WARN]`、`--status` 标「应急降级」、`--json` 记 degraded，
       **绝不静默把直连当常规路径**。`--strict-proxy` 让代理不通时直接 BLOCK，不做降级。
+    - **代理端点会漂移**（v2.13 实测：同一天 14126 → 4661 → 7890，端口死了 ≠ 代理不可用）。
+      `detect_env.py` 会扫本机常见代理端口，把**实测可通**的写进 `network.proxy_candidates`，
+      `sync_now.py` 按候选逐个试。**换端口仍是走代理，只有 `direct` 那段才算绕过** ——
+      不要把「换端点」和「绕代理」混为一谈，也不要用换端口来掩饰代理本身的问题。
     - 直连只保留两个用途：① 诊断 `--route direct`（判断「是不是代理把 GitHub 打挂了」）；
       ② 代理彻底不通时的应急兜底。两者都必须显式、可见、不得写成默认。
     - `bypass_hosts` 恒为空；`connect_github.py` 默认强制 `ProxyHandler`，不再对 `api.github.com` 绕代理。
       禁止改 `NO_PROXY` 把 GitHub 排除在代理之外，禁止 `.git/config` 写死代理，禁止强推。
-    - 排查顺序：① `--status --route proxy` 看代理本身（502 多为瞬时，重试通常能过）；
-      ② 仍不通查代理进程 / 端口 / 换节点；③ 只有怀疑代理限制 GitHub 时才 `--route direct` 对照；
+    - 排查顺序：① `--status` 看候选端点与「实际走哪个」（`--json` 的 `endpoint` 字段）；
+      ② 都不通查代理进程 / 节点；③ 只有怀疑代理限制 GitHub 时才 `--route direct` 对照；
       ④ 恢复后 `--end` 补推，**不要重新提交**。
 
 62. **用户明确陈述的环境事实，优先于本机单次探测数据**（v2.11）：
@@ -590,6 +594,22 @@ Dimitrov 2026（19 页 / 11 图 3 表；翻译 11 块 + 审校 12 块；共 353 
       本身就该按「不可靠」处理，而不是挑对自己有利的那次写进规则。
     - 写规则前先自问：这条结论如果错了，会不会让后续每篇论文都踩同一个坑？
       会 → 写成「默认严格 + 显式降级」，不要写成「按探测结果择优」。
+
+63. **远端只保留一个主库；删除仓库是不可逆操作，必须「列清单 → 留底 → 最小权限 → 回读」**（v2.13）：
+    - 用户 2026-11-14 要求清空 GitHub 上其他仓库、只留公开主库。这类操作先做四件事，缺一不可：
+      ① **列清单让用户逐项确认**（不要从「其他都删」自行推断边界，尤其涉及带历史的归档库）；
+      ② 删除前 `git clone --mirror` + `git bundle create <name>.bundle --all` 留底到
+      `~/.workbuddy/backups/`，并在回复里报出 bundle 体积与 tag 数；
+      ③ 用**最小权限**的 classic PAT（只要 `delete_repo`，7 天过期），token 存**本地文件**读取、
+      **绝不出现在聊天/日志/配置**，用完立即 `rm` 并提醒用户去 Settings → Tokens 撤销；
+      ④ 删完回读 `GET /user/repos` 核对剩余仓库，并 `ls-remote` 确认主库 HEAD/tag 未受影响。
+    - **权限事实**：GCM 的 OAuth token 固定为 `repo, gist, workflow`，**没有 `delete_repo`**，
+      且 GCM 2.9 不支持自定义 scope（`github login` 无 `--scopes`）。所以删仓库只能靠
+      classic PAT（`/settings/tokens/new?scopes=delete_repo`）或网页操作，**不要试图用连接器或改 OAuth**。
+    - 删除后必须同步改文档：凡写着「私有归档库 / archive 库」的段落（`SKILL.md`、`PUBLIC-NOTICE.md`、
+      `PUBLIC-RELEASE.md`、`WORKBUDDY-ADAPTER.md`）一律改成「已删除 + 本机 bundle 路径」，
+      否则下一个人（或未来的我）会去找一个不存在的仓库。
+    - 禁止：批量删除时跳过确认、把 PAT 写进任何文件或命令行历史、未经备份就删带历史的库。
 
 ## 成本控制（Dimitrov 2026 实测：会话口径 ¥2.44/篇，19 页）
 

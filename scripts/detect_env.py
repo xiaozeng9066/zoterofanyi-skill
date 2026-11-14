@@ -39,6 +39,54 @@ VENV_PY = "Scripts/python.exe" if os.name == "nt" else "bin/python"
 DEFAULT_MODE = "proxy-required"     # auto 仅用于无代理的境外网络
 DEFAULT_FALLBACK = "warn"           # warn=代理不通时应急降级并告警；block=直接阻断
 PROBE_URL_FALLBACK = "https://github.com/git/git.git"
+# v2.13：代理软件端口会漂移（实测一天内 14126 → 4661 → 7890），端口死了 ≠ 代理不可用。
+# 探测时除环境变量外还扫这些本机常见端口，**全部是代理端口**（换端点仍是走代理）。
+DEFAULT_PROXY_PORTS = (7890, 10809, 1080, 4661, 14126, 8889, 2080, 33210)
+
+
+def _port_label(url: str | None) -> str:
+    """host:port 形式，便于日志阅读。"""
+    if not url:
+        return "?"
+    return url.split("://")[-1].rstrip("/")
+
+
+def _port_open(host: str, port: int, timeout: float = 0.4) -> bool:
+    try:
+        with socket.create_connection((host, port), timeout=timeout):
+            return True
+    except OSError:
+        return False
+
+
+def probe_proxy_candidates(primary: str | None, primary_ok: bool | None,
+                           primary_ms: float | None, url: str) -> list[dict]:
+    """找出本机真正能用的代理端点，写进 proxy_candidates（按可用 + 耗时排序）。
+
+    主端点已通就只记它（不做无谓扫描）；不通才扫常见端口——
+    这是「换一个代理端口」，不是「绕过代理」，符合规则 61。
+    """
+    found: list[dict] = []
+    seen: set[str] = set()
+
+    def add(u: str, ok: bool, ms: float | None) -> None:
+        if u in seen:
+            return
+        seen.add(u)
+        found.append({"url": u, "ok": ok, "ms": ms})
+
+    if primary:
+        add(primary, bool(primary_ok), primary_ms)
+    if primary_ok:
+        return found
+    for port in DEFAULT_PROXY_PORTS:
+        endpoint = f"http://127.0.0.1:{port}"
+        if endpoint in seen or not _port_open("127.0.0.1", port):
+            continue
+        ok, ms = _ls_remote(url, direct=False, proxy=endpoint)
+        add(endpoint, ok, ms)
+    found.sort(key=lambda c: (0 if c["ok"] else 1, c["ms"] if c["ms"] is not None else 999))
+    return found
 
 
 def _env_proxy() -> str | None:
@@ -80,22 +128,30 @@ def probe_network(remote_url: str | None, old: dict) -> dict:
         proxy_ok, proxy_ms = _ls_remote(url, direct=False, proxy=proxy)
     # 诊断：不经代理时通不通（不作为选路依据）
     direct_ok, direct_ms = _ls_remote(url, direct=True, proxy=proxy)
+    candidates = probe_proxy_candidates(proxy, proxy_ok, proxy_ms, url)
+    best = next((c for c in candidates if c["ok"]), None)
 
     mode = prev.get("mode") if prev.get("mode") in ("proxy-required", "auto") else DEFAULT_MODE
     fallback = prev.get("fallback") if prev.get("fallback") in ("warn", "block") else DEFAULT_FALLBACK
     force = prev.get("force") if prev.get("force") in ("direct", "proxy", None) else None
 
     if mode == "proxy-required":
-        chosen = "proxy" if proxy else "direct"
+        chosen = "proxy" if (proxy or best) else "direct"
     else:
-        chosen = "proxy" if (proxy and proxy_ok) else ("direct" if direct_ok else "auto")
+        chosen = "proxy" if ((proxy and proxy_ok) or best) else ("direct" if direct_ok else "auto")
 
-    if not proxy:
-        notes.append("未探测到 HTTPS_PROXY —— 国内环境几乎必然同步失败；先配代理，再跑 "
-                     "sync_now.py --status --route proxy 验证。")
+    if not proxy and not best:
+        notes.append("未探测到可用代理端点 —— 国内环境几乎必然同步失败；先启动代理，再跑 "
+                     "sync_now.py --status 验证。")
+    elif not proxy:
+        notes.append("环境变量里没有 HTTPS_PROXY，但本机探测到可用代理端点；"
+                     "建议启动代理软件时打开「设置系统代理 / 环境变量」。")
+    elif not proxy_ok and best:
+        notes.append("环境变量里的代理端点 %s 不通，已自动改用 %s（仍是走代理，不是绕代理）。"
+                     % (_port_label(proxy), _port_label(best["url"])))
     elif not proxy_ok:
-        notes.append("代理本次探测失败（多为瞬时 502）：仍以代理为准，重试通常可通；"
-                     "连续失败再查代理进程/端口。")
+        notes.append("代理本次探测全部失败（多为瞬时 502 / 端口已变）：仍以代理为准，重试通常可通；"
+                     "还不行就查代理进程与端口。")
     if direct_ok and proxy:
         notes.append("诊断：不经代理也能通（%.2fs）。这可能只是系统级 TUN/透明代理在中转，"
                      "不代表可以长期绕过代理 —— 不要据此改走直连。" % (direct_ms or 0))
@@ -107,6 +163,8 @@ def probe_network(remote_url: str | None, old: dict) -> dict:
             "https_proxy": os.environ.get("HTTPS_PROXY") or os.environ.get("https_proxy"),
             "no_proxy": no_proxy,
         },
+        # v2.13：可用代理端点（sync_now.py 逐个尝试；全是代理端口，不含直连）
+        "proxy_candidates": candidates,
         "github_proxy_ok": proxy_ok,
         "github_proxy_ms": proxy_ms,
         "github_direct_ok": direct_ok,
@@ -279,7 +337,9 @@ def main() -> int:
                  else ("OK" if network["github_proxy_ok"] else "FAIL（重试后会再试）"))
         pms = "" if network["github_proxy_ms"] is None else f" ({network['github_proxy_ms']}s)"
         dstat = "OK" if network["github_direct_ok"] else "FAIL"
-        print(f"  网络: 代理 {pstat}{pms} → 采用 走代理（{network['mode']}，重试 3 次）")
+        ok_eps = [_port_label(c["url"]) for c in (network.get("proxy_candidates") or []) if c["ok"]]
+        print(f"  网络: 代理 {pstat}{pms} → 采用 走代理（{network['mode']}，每端点重试 2 次）")
+        print(f"        可用代理端点: {', '.join(ok_eps) if ok_eps else '无（先启动代理）'}")
         print(f"        诊断（不作选路依据）: 不经代理 {dstat} ({network['github_direct_ms']}s)")
         if network["bypass_hosts"]:
             print(f"        白名单: {', '.join(network['bypass_hosts'])}")

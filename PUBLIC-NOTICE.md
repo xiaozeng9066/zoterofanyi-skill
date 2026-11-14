@@ -12,6 +12,9 @@
 ## 本仓库拓扑（v2.8 起）
 
 - **本库 = 公开主库**：`https://github.com/xiaozeng9066/zoterofanyi-skill.git`（public），从脱敏副本建**干净初始提交** tag `v2.8`，不含任何历史里的论文正文。
-- 旧私有库已改名 `xiaozeng9066/zoterofanyi-skill-archive`（private），保留 v2.2–v2.8 完整历史与全强度真实 fixture；文档里提到「私有库」的段落是迁移前的历史记录。
+- 旧私有库 `xiaozeng9066/zoterofanyi-skill-archive` **已于 2026-11-14 删除**（账户内只保留本库）；
+  v2.2–v2.8 的完整历史与全强度真实 fixture 仅存于本机离线备份
+  `~/.workbuddy/backups/zoterofanyi-skill-archive-20261114.bundle`（696 KB，可 `git clone` 恢复）。
+  文档里提到「私有库 / 归档库」的段落是迁移前的历史记录。
 - `fixtures_full/` 是本机全强度回归用的真实快照，**gitignored、不入库**；`fixtures/` 只含合成案例。
 - `PUBLIC-MODE.json` 开启每次提交的隐私门禁（`public_sanitize.py --gate`，规则 60），禁止删除或绕过。

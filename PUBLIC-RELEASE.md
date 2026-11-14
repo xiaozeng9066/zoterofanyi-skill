@@ -216,8 +216,12 @@ CHANGELOG 写明理由」。**私有主库的 expected.json 一个字节都没�
 
 | 仓库 | 可见性 | 历史 | fixtures |
 |---|---|---|---|
-| `zoterofanyi-skill-archive`（旧库改名） | private | v2.2–v2.8 完整历史 | 全强度真实快照 |
+| ~~`zoterofanyi-skill-archive`（旧库改名）~~ **2026-11-14 已删除** | private | v2.2–v2.8 完整历史（仅存本机 bundle） | 全强度真实快照 |
 | `zoterofanyi-skill`（新建，URL 不变） | **public** | 单一干净初始提交 tag v2.8 | 合成案例 + 本地 `fixtures_full/`（不入库） |
+
+> 2026-11-14 用户要求「删掉其他仓库，只留这个」：archive 库已删，删除前已 `git bundle` 留底到
+> `~/.workbuddy/backups/zoterofanyi-skill-archive-20261114.bundle`。**本库是唯一远端**，
+> 因此 `fixtures_full/` 与本地 bundle 成了唯一的真实历史载体，不要清理这两处。
 
 禁止删除/改写 `PUBLIC-MODE.json` 绕过门禁；新案例必须先合成化再进 `fixtures/`。
 

@@ -28,6 +28,7 @@
     "mode": "proxy-required",
     "fallback": "warn",
     "proxy_env": { "https_proxy": null, "no_proxy": null },
+    "proxy_candidates": [],
     "github_proxy_ok": null,
     "github_proxy_ms": null,
     "github_direct_ok": null,
