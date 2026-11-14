@@ -1,0 +1,19 @@
+{
+  "case": "chen2026_extract",
+  "kind": "extraction",
+  "assertions": {
+    "pages": 21,
+    "paragraphs": 107,
+    "must_contain": [
+      "SYNTHETIC-ANCHOR-01-01",
+      "SYNTHETIC-ANCHOR-01-02"
+    ],
+    "must_not_contain": [
+      "Ojecive"
+    ],
+    "missing_must_contain": [],
+    "found_forbidden": []
+  },
+  "pdf_name": "SYNTHETIC-CASE-01.pdf",
+  "synthetic": true
+}

@@ -1,0 +1,20 @@
+{
+  "case": "wang2021_extract",
+  "kind": "extraction",
+  "assertions": {
+    "pages": 11,
+    "paragraphs": 82,
+    "must_contain": [
+      "SYNTHETIC-ANCHOR-11-01",
+      "SYNTHETIC-ANCHOR-11-02"
+    ],
+    "must_not_contain": [
+      "Ojecive",
+      "learnig"
+    ],
+    "missing_must_contain": [],
+    "found_forbidden": []
+  },
+  "pdf_name": "SYNTHETIC-CASE-11.pdf",
+  "synthetic": true
+}

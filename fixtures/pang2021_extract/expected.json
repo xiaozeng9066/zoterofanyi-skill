@@ -1,0 +1,22 @@
+{
+  "case": "pang2021_extract",
+  "kind": "extraction",
+  "assertions": {
+    "pages": 4,
+    "paragraphs": 46,
+    "must_contain": [
+      "SYNTHETIC-ANCHOR-10-01",
+      "SYNTHETIC-ANCHOR-10-02"
+    ],
+    "must_not_contain": [
+      "Ojecive",
+      "learnig",
+      "Hospialhilehahillh",
+      "Dicuss"
+    ],
+    "missing_must_contain": [],
+    "found_forbidden": []
+  },
+  "pdf_name": "SYNTHETIC-CASE-10.pdf",
+  "synthetic": true
+}

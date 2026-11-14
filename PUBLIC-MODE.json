@@ -1,0 +1,8 @@
+{
+  "mode": "public",
+  "require_sanitize_gate": true,
+  "description": "公开主库：fixtures/ 只允许合成数据；真实全强度快照放 fixtures_full/（不入库）",
+  "created": "2026-11-14",
+  "enforced_by": "iterate_commit.py → public_sanitize.py --gate",
+  "note": "删掉本文件不会让内容变干净，只会关掉护栏；禁止用 --no-tag/--skip-regression 绕过。"
+}

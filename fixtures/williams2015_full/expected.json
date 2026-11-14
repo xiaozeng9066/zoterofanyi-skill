@@ -1,0 +1,23 @@
+{
+  "case": "williams2015_full",
+  "kind": "full",
+  "assertions": {
+    "blocks": 141,
+    "footnotes": 2,
+    "tables": 11,
+    "figures": 0,
+    "equations": 0,
+    "pdf_name": "Williams 2015 PLOS ONE 学校对学生体重状况的潜在影响.pdf",
+    "qa": {
+      "fail": 0
+    },
+    "rules": {
+      "fail": 0
+    },
+    "audit": {
+      "fail": 0
+    }
+  },
+  "pdf_name": "SYNTHETIC-CASE-14.pdf",
+  "synthetic": true
+}

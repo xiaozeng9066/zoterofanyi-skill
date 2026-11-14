@@ -1,0 +1,23 @@
+{
+  "case": "jia2017_full",
+  "kind": "full",
+  "assertions": {
+    "blocks": 104,
+    "footnotes": 1,
+    "tables": 4,
+    "figures": 1,
+    "equations": 0,
+    "pdf_name": "Jia 2017 IJO 中国特大城市学校环境与政策.pdf",
+    "qa": {
+      "fail": 0
+    },
+    "rules": {
+      "fail": 0
+    },
+    "audit": {
+      "fail": 0
+    }
+  },
+  "pdf_name": "SYNTHETIC-CASE-06.pdf",
+  "synthetic": true
+}

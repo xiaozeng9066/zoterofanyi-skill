@@ -1,0 +1,23 @@
+{
+  "case": "moreira2020_full",
+  "kind": "full",
+  "assertions": {
+    "blocks": 193,
+    "footnotes": 1,
+    "tables": 7,
+    "figures": 1,
+    "equations": 0,
+    "pdf_name": "Moreira 2020 BMC Pediatrics 巴西北部学校健康计划.pdf",
+    "qa": {
+      "fail": 0
+    },
+    "rules": {
+      "fail": 0
+    },
+    "audit": {
+      "fail": 0
+    }
+  },
+  "pdf_name": "SYNTHETIC-CASE-08.pdf",
+  "synthetic": true
+}

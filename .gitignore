@@ -1,0 +1,42 @@
+# zoterofanyi skill 仓库 —— 只版本化 skill 资产本身。
+# 仓库边界：本目录 = skill 唯一真源；工作区 zotero-translate/<key>/ 的运行产物不在此仓库。
+
+# Python 运行产物
+__pycache__/
+*.py[cod]
+*.egg-info/
+.venv/
+venv/
+
+# 本机临时 / 备份 / 编辑器残留
+*.log
+*.tmp
+*.bak
+*.swp
+*~
+.DS_Store
+Thumbs.db
+
+# 本机私有配置（凭证、个人路径），若将来新增一律不入库
+*.local.json
+*.local.md
+*_local.py
+
+# ★ 每台电脑由 detect_env.py 生成的本机配置：绝不入库、绝不跨机复用（规则 56）
+local_config.json
+
+# 绝不入库：论文原文、成品双语 PDF、Zotero 数据库副本。
+# 这些文件体积大、含第三方版权内容，且黄金集快照是 json 而非 pdf。
+*.pdf
+*.sqlite
+*.sqlite-journal
+
+# ★ v2.7 起：公开库脱敏副本由 public_sanitize.py 生成，是构建产物，绝不入库。
+#   真源 fixtures/ 保持全强度；公开仓库必须从 dist/public 单独建干净历史。
+dist/
+
+# 注意：fixtures/ 的 *.json（含 *.broken 回归输入）、tm/ 的翻译记忆、
+# templates/ 的术语例外、scripts/ 的 *.py 与 *.sh 都必须入库，不要加宽上面的规则。
+
+# 公开主库：真实全强度快照只留本机，绝不入库（规则 60）
+fixtures_full/

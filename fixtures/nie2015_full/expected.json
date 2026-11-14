@@ -1,0 +1,23 @@
+{
+  "case": "nie2015_full",
+  "kind": "full",
+  "assertions": {
+    "blocks": 183,
+    "footnotes": 22,
+    "tables": 21,
+    "figures": 4,
+    "equations": 3,
+    "pdf_name": "Nie 等 - 2015 - Peer effects on childhood and adolescent obesity in China.pdf",
+    "qa": {
+      "fail": 0
+    },
+    "rules": {
+      "fail": 0
+    },
+    "audit": {
+      "fail": 0
+    }
+  },
+  "pdf_name": "SYNTHETIC-CASE-09.pdf",
+  "synthetic": true
+}

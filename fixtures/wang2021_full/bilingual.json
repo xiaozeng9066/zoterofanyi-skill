@@ -1,0 +1,1007 @@
+{
+  "meta": {
+    "source_pdf": "<WORKSPACE>/zotero-translate/<KEY>/source.pdf",
+    "pages_in_sample": "全文 11 页（4 表、6 图、1 公式）",
+    "glossary_version": "v1.0",
+    "layout": "段落交错 + 表格/插图原图保真（双栏原刊，读序按栏）",
+    "item_key": "SYNTH12",
+    "attachment_key": "SYNTH12",
+    "title_en": "Synthetic regression paragraph 002. The pooled estimate was 0.54 (95% CI 0.47-0.61); values 1.5 and 450 were recorded.",
+    "title_zh": "合成回归段落 003。合并估计值为 0.54（95% 置信区间 0.47–0.61）；记录数值 1.5 与 450。",
+    "author_year": "Synthetic regression case 12",
+    "journal": "Synthetic regression case 12",
+    "doi": "10.0000/synthetic-12",
+    "translator": "DSH 子代理并行分块翻译（翻译阶段关思考）+ 统一术语与机械校验",
+    "doc_kind_label": "中英对照全文",
+    "print_glossary": false,
+    "pdf_name": "SYNTHETIC-CASE-12.pdf"
+  },
+  "table_leaks": [],
+  "glossary": [
+    [
+      "noise-induced hearing loss (NIHL)",
+      "噪声性听力损失（NIHL）"
+    ],
+    [
+      "audiometric phenotype",
+      "听力图表型"
+    ],
+    [
+      "audiogram",
+      "听力图"
+    ],
+    [
+      "notched audiogram",
+      "切迹型听力图"
+    ],
+    [
+      "audiometric notch",
+      "听力图切迹"
+    ],
+    [
+      "sharp-notched audiogram",
+      "锐切迹型听力图"
+    ],
+    [
+      "flat-notched audiogram",
+      "平切迹型听力图"
+    ],
+    [
+      "hearing threshold",
+      "听阈"
+    ],
+    [
+      "pure-tone air-conduction audiometry",
+      "纯音气导测听"
+    ],
+    [
+      "kHz",
+      "kHz"
+    ],
+    [
+      "dB HL",
+      "dB HL（听力级分贝）"
+    ],
+    [
+      "normal hearing",
+      "听力正常"
+    ],
+    [
+      "hearing loss",
+      "听力损失"
+    ],
+    [
+      "high-frequency hearing loss",
+      "高频听力损失"
+    ],
+    [
+      "sensorineural hearing impairment",
+      "感音神经性听力障碍"
+    ],
+    [
+      "data-driven cluster analysis",
+      "数据驱动聚类分析"
+    ],
+    [
+      "k-means",
+      "k-means（K 均值）"
+    ],
+    [
+      "within cluster sum of squares (WSS)",
+      "簇内平方和（WSS）"
+    ],
+    [
+      "cluster",
+      "聚类"
+    ],
+    [
+      "unsupervised learning",
+      "无监督学习"
+    ],
+    [
+      "cumulative noise exposure (CNE)",
+      "累积噪声暴露（CNE）"
+    ],
+    [
+      "equivalent sound pressure level",
+      "等效声压级"
+    ],
+    [
+      "A-weighted sound pressure level (LAeq,8h)",
+      "A 计权等效声压级（LAeq,8h）"
+    ],
+    [
+      "noise dosimeter",
+      "噪声剂量计"
+    ],
+    [
+      "hearing protection device (HPD)",
+      "听力防护设备（HPD）"
+    ],
+    [
+      "body mass index (BMI)",
+      "体质指数（BMI）"
+    ],
+    [
+      "obese / non-obese",
+      "肥胖 / 非肥胖"
+    ],
+    [
+      "smoking",
+      "吸烟"
+    ],
+    [
+      "alcohol consumption",
+      "饮酒"
+    ],
+    [
+      "tinnitus",
+      "耳鸣"
+    ],
+    [
+      "hearing difficulty",
+      "听力困难"
+    ],
+    [
+      "odds ratio (OR)",
+      "比值比（OR）"
+    ],
+    [
+      "confidence interval (CI)",
+      "置信区间（CI）"
+    ],
+    [
+      "multinomial logistic regression",
+      "多分类 logistic 回归"
+    ],
+    [
+      "hierarchical regression",
+      "分层回归"
+    ],
+    [
+      "cross-sectional study",
+      "横断面研究"
+    ],
+    [
+      "stratification",
+      "分层"
+    ],
+    [
+      "subtype",
+      "亚型"
+    ],
+    [
+      "cluster analysis",
+      "聚类分析"
+    ],
+    [
+      "sub-stratification",
+      "亚分层"
+    ],
+    [
+      "age-related hearing loss",
+      "年龄相关性听力损失"
+    ],
+    [
+      "presbycusis",
+      "老年性聋"
+    ],
+    [
+      "replicability",
+      "可复制性"
+    ],
+    [
+      "fine particulate matter",
+      "细颗粒物"
+    ]
+  ],
+  "blocks": [
+    {
+      "id": "p1-0",
+      "kind": "title",
+      "pages": [
+        1
+      ],
+      "en": "Synthetic regression paragraph 001. The pooled estimate was 0.54 (95% CI 0.47-0.61); values 1.5 and 450 were recorded.",
+      "zh": "合成回归段落 001。合并估计值为 0.54（95% 置信区间 0.47–0.61）；记录数值 1.5 与 450。",
+      "size": 20.9
+    },
+    {
+      "id": "p1-meta",
+      "kind": "footnote",
+      "pages": [
+        1
+      ],
+      "marker": "M",
+      "en": "Synthetic regression paragraph 002. The pooled estimate was 0.54 (95% CI 0.47-0.61); values 1.5 and 450 were recorded.",
+      "zh": "合成回归段落 002。合并估计值为 0.54（95% 置信区间 0.47–0.61）；记录数值 1.5 与 450。",
+      "section": null
+    },
+    {
+      "id": "p1-12",
+      "kind": "para",
+      "pages": [
+        1
+      ],
+      "en": "Synthetic regression paragraph 003. The pooled estimate was 0.54 (95% CI 0.47-0.61); values 1.5 and 450 were recorded.",
+      "zh": "合成回归段落 003。合并估计值为 0.54（95% 置信区间 0.47–0.61）；记录数值 1.5 与 450。",
+      "size": 9.0
+    },
+    {
+      "id": "p1-13",
+      "kind": "para",
+      "pages": [
+        1
+      ],
+      "en": "Synthetic regression paragraph 004. The pooled estimate was 0.54 (95% CI 0.47-0.61); values 1.5 and 450 were recorded.",
+      "zh": "合成回归段落 004。合并估计值为 0.54（95% 置信区间 0.47–0.61）；记录数值 1.5 与 450。",
+      "size": 7.0
+    },
+    {
+      "id": "p1-2",
+      "kind": "para",
+      "pages": [
+        1
+      ],
+      "en": "Synthetic regression paragraph 005. The pooled estimate was 0.54 (95% CI 0.47-0.61); values 1.5 and 450 were recorded.",
+      "zh": "合成回归段落 005。合并估计值为 0.54（95% 置信区间 0.47–0.61）；记录数值 1.5 与 450。",
+      "size": 7.0,
+      "flag": "疑似边界残余文字，需人工核对"
+    },
+    {
+      "id": "p1-14",
+      "kind": "para",
+      "pages": [
+        1
+      ],
+      "en": "Synthetic regression paragraph 006. The pooled estimate was 0.54 (95% CI 0.47-0.61); values 1.5 and 450 were recorded.",
+      "zh": "合成回归段落 006。合并估计值为 0.54（95% 置信区间 0.47–0.61）；记录数值 1.5 与 450。",
+      "size": 10.0
+    },
+    {
+      "id": "p1-15",
+      "kind": "para",
+      "pages": [
+        1
+      ],
+      "en": "Synthetic regression paragraph 007. The pooled estimate was 0.54 (95% CI 0.47-0.61); values 1.5 and 450 were recorded.",
+      "zh": "合成回归段落 007。合并估计值为 0.54（95% 置信区间 0.47–0.61）；记录数值 1.5 与 450。",
+      "size": 10.0
+    },
+    {
+      "id": "p1-6",
+      "kind": "para",
+      "pages": [
+        1
+      ],
+      "en": "Synthetic regression paragraph 008. The pooled estimate was 0.54 (95% CI 0.47-0.61); values 1.5 and 450 were recorded.",
+      "zh": "合成回归段落 008。合并估计值为 0.54（95% 置信区间 0.47–0.61）；记录数值 1.5 与 450。",
+      "size": 7.0
+    },
+    {
+      "id": "p1-16",
+      "kind": "para",
+      "pages": [
+        1
+      ],
+      "en": "Synthetic regression paragraph 009. The pooled estimate was 0.54 (95% CI 0.47-0.61); values 1.5 and 450 were recorded.",
+      "zh": "合成回归段落 009。合并估计值为 0.54（95% 置信区间 0.47–0.61）；记录数值 1.5 与 450。",
+      "size": 10.0
+    },
+    {
+      "id": "p2-0",
+      "kind": "para",
+      "pages": [
+        2
+      ],
+      "en": "Synthetic regression paragraph 010. The pooled estimate was 0.54 (95% CI 0.47-0.61); values 1.5 and 450 were recorded.",
+      "zh": "合成回归段落 010。合并估计值为 0.54（95% 置信区间 0.47–0.61）；记录数值 1.5 与 450。",
+      "size": 10.0
+    },
+    {
+      "id": "p2-1",
+      "kind": "para",
+      "pages": [
+        2
+      ],
+      "en": "Synthetic regression paragraph 011. The pooled estimate was 0.54 (95% CI 0.47-0.61); values 1.5 and 450 were recorded.",
+      "zh": "合成回归段落 011。合并估计值为 0.54（95% 置信区间 0.47–0.61）；记录数值 1.5 与 450。",
+      "size": 7.0
+    },
+    {
+      "id": "p2-2",
+      "kind": "heading",
+      "pages": [
+        2
+      ],
+      "en": "Synthetic regression paragraph 012. The pooled estimate was 0.54 (95% CI 0.47-0.61); values 1.5 and 450 were recorded.",
+      "zh": "合成回归段落 012。合并估计值为 0.54（95% 置信区间 0.47–0.61）；记录数值 1.5 与 450。",
+      "size": 12.0
+    },
+    {
+      "id": "p2-7",
+      "kind": "para",
+      "pages": [
+        2
+      ],
+      "en": "Synthetic regression paragraph 013. The pooled estimate was 0.54 (95% CI 0.47-0.61); values 1.5 and 450 were recorded.",
+      "zh": "合成回归段落 013。合并估计值为 0.54（95% 置信区间 0.47–0.61）；记录数值 1.5 与 450。",
+      "size": 9.5
+    },
+    {
+      "id": "p2-3",
+      "kind": "para",
+      "pages": [
+        2
+      ],
+      "en": "Synthetic regression paragraph 014. The pooled estimate was 0.54 (95% CI 0.47-0.61); values 1.5 and 450 were recorded.",
+      "zh": "合成回归段落 014。合并估计值为 0.54（95% 置信区间 0.47–0.61）；记录数值 1.5 与 450。",
+      "size": 9.5
+    },
+    {
+      "id": "p2-8",
+      "kind": "heading",
+      "pages": [
+        2
+      ],
+      "en": "Synthetic regression paragraph 015. The pooled estimate was 0.54 (95% CI 0.47-0.61); values 1.5 and 450 were recorded.",
+      "zh": "合成回归段落 015。合并估计值为 0.54（95% 置信区间 0.47–0.61）；记录数值 1.5 与 450。",
+      "size": 12.0
+    },
+    {
+      "id": "p2-9",
+      "kind": "heading",
+      "pages": [
+        2
+      ],
+      "en": "Synthetic regression paragraph 016. The pooled estimate was 0.54 (95% CI 0.47-0.61); values 1.5 and 450 were recorded.",
+      "zh": "合成回归段落 016。合并估计值为 0.54（95% 置信区间 0.47–0.61）；记录数值 1.5 与 450。",
+      "size": 12.0
+    },
+    {
+      "id": "p2-10",
+      "kind": "para",
+      "pages": [
+        2
+      ],
+      "en": "Synthetic regression paragraph 017. The pooled estimate was 0.54 (95% CI 0.47-0.61); values 1.5 and 450 were recorded.",
+      "zh": "合成回归段落 017。合并估计值为 0.54（95% 置信区间 0.47–0.61）；记录数值 1.5 与 450。",
+      "size": 9.5
+    },
+    {
+      "id": "p2-4",
+      "kind": "para",
+      "pages": [
+        2
+      ],
+      "en": "Synthetic regression paragraph 018. The pooled estimate was 0.54 (95% CI 0.47-0.61); values 1.5 and 450 were recorded.",
+      "zh": "合成回归段落 018。合并估计值为 0.54（95% 置信区间 0.47–0.61）；记录数值 1.5 与 450。",
+      "size": 9.5
+    },
+    {
+      "id": "p2-11",
+      "kind": "heading",
+      "pages": [
+        2
+      ],
+      "en": "Synthetic regression paragraph 019. The pooled estimate was 0.54 (95% CI 0.47-0.61); values 1.5 and 450 were recorded.",
+      "zh": "合成回归段落 019。合并估计值为 0.54（95% 置信区间 0.47–0.61）；记录数值 1.5 与 450。",
+      "size": 12.0
+    },
+    {
+      "id": "p2-5",
+      "kind": "para",
+      "pages": [
+        2
+      ],
+      "en": "Synthetic regression paragraph 020. The pooled estimate was 0.54 (95% CI 0.47-0.61); values 1.5 and 450 were recorded.",
+      "zh": "合成回归段落 020。合并估计值为 0.54（95% 置信区间 0.47–0.61）；记录数值 1.5 与 450。",
+      "size": 9.5
+    },
+    {
+      "id": "p2-12",
+      "kind": "para",
+      "pages": [
+        2
+      ],
+      "en": "Synthetic regression paragraph 021. The pooled estimate was 0.54 (95% CI 0.47-0.61); values 1.5 and 450 were recorded.",
+      "zh": "合成回归段落 021。合并估计值为 0.54（95% 置信区间 0.47–0.61）；记录数值 1.5 与 450。",
+      "size": 9.5
+    },
+    {
+      "id": "p2-6",
+      "kind": "para",
+      "pages": [
+        2
+      ],
+      "en": "Synthetic regression paragraph 022. The pooled estimate was 0.54 (95% CI 0.47-0.61); values 1.5 and 450 were recorded.",
+      "zh": "合成回归段落 022。合并估计值为 0.54（95% 置信区间 0.47–0.61）；记录数值 1.5 与 450。",
+      "size": 9.5
+    },
+    {
+      "id": "p2-13",
+      "kind": "heading",
+      "pages": [
+        2
+      ],
+      "en": "Synthetic regression paragraph 023. The pooled estimate was 0.54 (95% CI 0.47-0.61); values 1.5 and 450 were recorded.",
+      "zh": "合成回归段落 023。合并估计值为 0.54（95% 置信区间 0.47–0.61）；记录数值 1.5 与 450。",
+      "size": 12.0
+    },
+    {
+      "id": "p2-14",
+      "kind": "para",
+      "pages": [
+        2,
+        3
+      ],
+      "en": "Synthetic regression paragraph 024. The pooled estimate was 0.54 (95% CI 0.47-0.61); values 1.5 and 450 were recorded.",
+      "zh": "合成回归段落 024。合并估计值为 0.54（95% 置信区间 0.47–0.61）；记录数值 1.5 与 450。",
+      "size": 9.5
+    },
+    {
+      "id": "p3-figure-p3_figure_1",
+      "kind": "figure",
+      "pages": [
+        3
+      ],
+      "image": "assets/p3_figure_1.png",
+      "y": 67.0,
+      "caption_en": "Synthetic regression paragraph 025. The pooled estimate was 0.54 (95% CI 0.47-0.61); values 1.5 and 450 were recorded.",
+      "note_en": "",
+      "caption_zh": "合成回归段落 025。合并估计值为 0.54（95% 置信区间 0.47–0.61）；记录数值 1.5 与 450。"
+    },
+    {
+      "id": "p3-4",
+      "kind": "heading",
+      "pages": [
+        3
+      ],
+      "en": "Synthetic regression paragraph 026. The pooled estimate was 0.54 (95% CI 0.47-0.61); values 1.5 and 450 were recorded.",
+      "zh": "合成回归段落 026。合并估计值为 0.54（95% 置信区间 0.47–0.61）；记录数值 1.5 与 450。",
+      "size": 12.0
+    },
+    {
+      "id": "p3-5",
+      "kind": "para",
+      "pages": [
+        3
+      ],
+      "en": "Synthetic regression paragraph 027. The pooled estimate was 0.54 (95% CI 0.47-0.61); values 1.5 and 450 were recorded.",
+      "zh": "合成回归段落 027。合并估计值为 0.54（95% 置信区间 0.47–0.61）；记录数值 1.5 与 450。",
+      "size": 9.5
+    },
+    {
+      "id": "p3-1",
+      "kind": "heading",
+      "pages": [
+        3
+      ],
+      "en": "Synthetic regression paragraph 028. The pooled estimate was 0.54 (95% CI 0.47-0.61); values 1.5 and 450 were recorded.",
+      "zh": "合成回归段落 028。合并估计值为 0.54（95% 置信区间 0.47–0.61）；记录数值 1.5 与 450。",
+      "size": 12.0
+    },
+    {
+      "id": "p3-2",
+      "kind": "para",
+      "pages": [
+        3
+      ],
+      "en": "Synthetic regression paragraph 029. The pooled estimate was 0.54 (95% CI 0.47-0.61); values 1.5 and 450 were recorded.",
+      "zh": "合成回归段落 029。合并估计值为 0.54（95% 置信区间 0.47–0.61）；记录数值 1.5 与 450。",
+      "size": 9.5
+    },
+    {
+      "id": "p3-6",
+      "kind": "heading",
+      "pages": [
+        3
+      ],
+      "en": "Synthetic regression paragraph 030. The pooled estimate was 0.54 (95% CI 0.47-0.61); values 1.5 and 450 were recorded.",
+      "zh": "合成回归段落 030。合并估计值为 0.54（95% 置信区间 0.47–0.61）；记录数值 1.5 与 450。",
+      "size": 12.0
+    },
+    {
+      "id": "p3-7",
+      "kind": "para",
+      "pages": [
+        3
+      ],
+      "en": "Synthetic regression paragraph 031. The pooled estimate was 0.54 (95% CI 0.47-0.61); values 1.5 and 450 were recorded.",
+      "zh": "合成回归段落 031。合并估计值为 0.54（95% 置信区间 0.47–0.61）；记录数值 1.5 与 450。",
+      "size": 9.5
+    },
+    {
+      "id": "p3-equation-p3_equation_2",
+      "kind": "equation",
+      "pages": [
+        3
+      ],
+      "image": "assets/p3_equation_2.png",
+      "y": 600.0,
+      "caption_en": "",
+      "note_en": "",
+      "raw_lines": [],
+      "caption_zh": ""
+    },
+    {
+      "id": "p4-figure-p4_figure_1",
+      "kind": "figure",
+      "pages": [
+        4
+      ],
+      "image": "assets/p4_figure_1.png",
+      "y": 59.0,
+      "caption_en": "Synthetic regression paragraph 033. The pooled estimate was 0.54 (95% CI 0.47-0.61); values 1.5 and 450 were recorded.",
+      "note_en": "",
+      "caption_zh": "合成回归段落 033。合并估计值为 0.54（95% 置信区间 0.47–0.61）；记录数值 1.5 与 450。"
+    },
+    {
+      "id": "p5-table-p5_table_1",
+      "kind": "table",
+      "pages": [
+        5
+      ],
+      "image": "assets/p5_table_1.png",
+      "y": 73.0,
+      "caption_en": "Synthetic regression paragraph 034. The pooled estimate was 0.54 (95% CI 0.47-0.61); values 1.5 and 450 were recorded.",
+      "note_en": "Synthetic regression paragraph 034. The pooled estimate was 0.54 (95% CI 0.47-0.61); values 1.5 and 450 were recorded.",
+      "caption_zh": "合成回归段落 034。合并估计值为 0.54（95% 置信区间 0.47–0.61）；记录数值 1.5 与 450。",
+      "note_zh": "合成回归段落 034。合并估计值为 0.54（95% 置信区间 0.47–0.61）；记录数值 1.5 与 450。"
+    },
+    {
+      "id": "p5-4",
+      "kind": "heading",
+      "pages": [
+        5
+      ],
+      "en": "Synthetic regression paragraph 035. The pooled estimate was 0.54 (95% CI 0.47-0.61); values 1.5 and 450 were recorded.",
+      "zh": "合成回归段落 035。合并估计值为 0.54（95% 置信区间 0.47–0.61）；记录数值 1.5 与 450。",
+      "size": 12.0
+    },
+    {
+      "id": "p5-0",
+      "kind": "para",
+      "pages": [
+        5
+      ],
+      "en": "Synthetic regression paragraph 036. The pooled estimate was 0.54 (95% CI 0.47-0.61); values 1.5 and 450 were recorded.",
+      "zh": "合成回归段落 036。合并估计值为 0.54（95% 置信区间 0.47–0.61）；记录数值 1.5 与 450。",
+      "size": 9.5
+    },
+    {
+      "id": "p5-5",
+      "kind": "para",
+      "pages": [
+        5
+      ],
+      "en": "Synthetic regression paragraph 037. The pooled estimate was 0.54 (95% CI 0.47-0.61); values 1.5 and 450 were recorded.",
+      "zh": "合成回归段落 037。合并估计值为 0.54（95% 置信区间 0.47–0.61）；记录数值 1.5 与 450。",
+      "size": 9.5
+    },
+    {
+      "id": "p5-1",
+      "kind": "heading",
+      "pages": [
+        5
+      ],
+      "en": "Synthetic regression paragraph 038. The pooled estimate was 0.54 (95% CI 0.47-0.61); values 1.5 and 450 were recorded.",
+      "zh": "合成回归段落 038。合并估计值为 0.54（95% 置信区间 0.47–0.61）；记录数值 1.5 与 450。",
+      "size": 12.0
+    },
+    {
+      "id": "p5-2",
+      "kind": "heading",
+      "pages": [
+        5
+      ],
+      "en": "Synthetic regression paragraph 039. The pooled estimate was 0.54 (95% CI 0.47-0.61); values 1.5 and 450 were recorded.",
+      "zh": "合成回归段落 039。合并估计值为 0.54（95% 置信区间 0.47–0.61）；记录数值 1.5 与 450。",
+      "size": 12.0
+    },
+    {
+      "id": "p5-6",
+      "kind": "para",
+      "pages": [
+        5
+      ],
+      "en": "Synthetic regression paragraph 040. The pooled estimate was 0.54 (95% CI 0.47-0.61); values 1.5 and 450 were recorded.",
+      "zh": "合成回归段落 040。合并估计值为 0.54（95% 置信区间 0.47–0.61）；记录数值 1.5 与 450。",
+      "size": 9.5
+    },
+    {
+      "id": "p5-3",
+      "kind": "para",
+      "pages": [
+        5
+      ],
+      "en": "Synthetic regression paragraph 041. The pooled estimate was 0.54 (95% CI 0.47-0.61); values 1.5 and 450 were recorded.",
+      "zh": "合成回归段落 041。合并估计值为 0.54（95% 置信区间 0.47–0.61）；记录数值 1.5 与 450。",
+      "size": 9.5
+    },
+    {
+      "id": "p6-table-p6_table_1",
+      "kind": "table",
+      "pages": [
+        6
+      ],
+      "image": "assets/p6_table_1.png",
+      "y": 74.0,
+      "caption_en": "Synthetic regression paragraph 042. The pooled estimate was 0.54 (95% CI 0.47-0.61); values 1.5 and 450 were recorded.",
+      "note_en": "",
+      "caption_zh": "合成回归段落 042。合并估计值为 0.54（95% 置信区间 0.47–0.61）；记录数值 1.5 与 450。"
+    },
+    {
+      "id": "p6-0",
+      "kind": "para",
+      "pages": [
+        6
+      ],
+      "en": "Synthetic regression paragraph 043. The pooled estimate was 0.54 (95% CI 0.47-0.61); values 1.5 and 450 were recorded.",
+      "zh": "合成回归段落 043。合并估计值为 0.54（95% 置信区间 0.47–0.61）；记录数值 1.5 与 450。",
+      "size": 12.0
+    },
+    {
+      "id": "p6-figure-p6_figure_2",
+      "kind": "figure",
+      "pages": [
+        6
+      ],
+      "image": "assets/p6_figure_2.png",
+      "y": 159.0,
+      "caption_en": "Synthetic regression paragraph 044. The pooled estimate was 0.54 (95% CI 0.47-0.61); values 1.5 and 450 were recorded.",
+      "note_en": "",
+      "caption_zh": "合成回归段落 044。合并估计值为 0.54（95% 置信区间 0.47–0.61）；记录数值 1.5 与 450。"
+    },
+    {
+      "id": "p6-1",
+      "kind": "para",
+      "pages": [
+        6
+      ],
+      "en": "Synthetic regression paragraph 045. The pooled estimate was 0.54 (95% CI 0.47-0.61); values 1.5 and 450 were recorded.",
+      "zh": "合成回归段落 045。合并估计值为 0.54（95% 置信区间 0.47–0.61）；记录数值 1.5 与 450。",
+      "size": 9.5
+    },
+    {
+      "id": "p6-2",
+      "kind": "para",
+      "pages": [
+        6
+      ],
+      "en": "Synthetic regression paragraph 046. The pooled estimate was 0.54 (95% CI 0.47-0.61); values 1.5 and 450 were recorded.",
+      "zh": "合成回归段落 046。合并估计值为 0.54（95% 置信区间 0.47–0.61）；记录数值 1.5 与 450。",
+      "size": 9.5
+    },
+    {
+      "id": "p6-3",
+      "kind": "para",
+      "pages": [
+        6
+      ],
+      "en": "Synthetic regression paragraph 047. The pooled estimate was 0.54 (95% CI 0.47-0.61); values 1.5 and 450 were recorded.",
+      "zh": "合成回归段落 047。合并估计值为 0.54（95% 置信区间 0.47–0.61）；记录数值 1.5 与 450。",
+      "size": 12.0
+    },
+    {
+      "id": "p6-4",
+      "kind": "para",
+      "pages": [
+        6,
+        7
+      ],
+      "en": "Synthetic regression paragraph 048. The pooled estimate was 0.54 (95% CI 0.47-0.61); values 1.5 and 450 were recorded.",
+      "zh": "合成回归段落 048。合并估计值为 0.54（95% 置信区间 0.47–0.61）；记录数值 1.5 与 450。",
+      "size": 9.5,
+      "continued": true
+    },
+    {
+      "id": "p7-figure-p7_figure_2",
+      "kind": "figure",
+      "pages": [
+        7
+      ],
+      "image": "assets/p7_figure_2.png",
+      "y": 65.0,
+      "caption_en": "Synthetic regression paragraph 049. The pooled estimate was 0.54 (95% CI 0.47-0.61); values 1.5 and 450 were recorded.",
+      "note_en": "",
+      "caption_zh": "合成回归段落 049。合并估计值为 0.54（95% 置信区间 0.47–0.61）；记录数值 1.5 与 450。"
+    },
+    {
+      "id": "p7-figure-p7_figure_1",
+      "kind": "figure",
+      "pages": [
+        7
+      ],
+      "image": "assets/p7_figure_1.png",
+      "y": 66.0,
+      "caption_en": "Synthetic regression paragraph 050. The pooled estimate was 0.54 (95% CI 0.47-0.61); values 1.5 and 450 were recorded.",
+      "note_en": "",
+      "caption_zh": "合成回归段落 050。合并估计值为 0.54（95% 置信区间 0.47–0.61）；记录数值 1.5 与 450。"
+    },
+    {
+      "id": "p7-1",
+      "kind": "heading",
+      "pages": [
+        7
+      ],
+      "en": "Synthetic regression paragraph 051. The pooled estimate was 0.54 (95% CI 0.47-0.61); values 1.5 and 450 were recorded.",
+      "zh": "合成回归段落 051。合并估计值为 0.54（95% 置信区间 0.47–0.61）；记录数值 1.5 与 450。",
+      "size": 12.0
+    },
+    {
+      "id": "p7-2",
+      "kind": "para",
+      "pages": [
+        7
+      ],
+      "en": "Synthetic regression paragraph 052. The pooled estimate was 0.54 (95% CI 0.47-0.61); values 1.5 and 450 were recorded.",
+      "zh": "合成回归段落 052。合并估计值为 0.54（95% 置信区间 0.47–0.61）；记录数值 1.5 与 450。",
+      "size": 9.5
+    },
+    {
+      "id": "p8-figure-p8_figure_1",
+      "kind": "figure",
+      "pages": [
+        8
+      ],
+      "image": "assets/p8_figure_1.png",
+      "y": 63.0,
+      "caption_en": "Synthetic regression paragraph 053. The pooled estimate was 0.54 (95% CI 0.47-0.61); values 1.5 and 450 were recorded.",
+      "note_en": "",
+      "caption_zh": "合成回归段落 053。合并估计值为 0.54（95% 置信区间 0.47–0.61）；记录数值 1.5 与 450。"
+    },
+    {
+      "id": "p8-3",
+      "kind": "para",
+      "pages": [
+        8
+      ],
+      "en": "Synthetic regression paragraph 054. The pooled estimate was 0.54 (95% CI 0.47-0.61); values 1.5 and 450 were recorded.",
+      "zh": "合成回归段落 054。合并估计值为 0.54（95% 置信区间 0.47–0.61）；记录数值 1.5 与 450。",
+      "size": 9.5
+    },
+    {
+      "id": "p8-4",
+      "kind": "para",
+      "pages": [
+        8
+      ],
+      "en": "Synthetic regression paragraph 055. The pooled estimate was 0.54 (95% CI 0.47-0.61); values 1.5 and 450 were recorded.",
+      "zh": "合成回归段落 055。合并估计值为 0.54（95% 置信区间 0.47–0.61）；记录数值 1.5 与 450。",
+      "size": 9.5
+    },
+    {
+      "id": "p8-1",
+      "kind": "para",
+      "pages": [
+        8
+      ],
+      "en": "Synthetic regression paragraph 056. The pooled estimate was 0.54 (95% CI 0.47-0.61); values 1.5 and 450 were recorded.",
+      "zh": "合成回归段落 056。合并估计值为 0.54（95% 置信区间 0.47–0.61）；记录数值 1.5 与 450。",
+      "size": 9.5,
+      "continued": true
+    },
+    {
+      "id": "p9-table-p9_table_1",
+      "kind": "table",
+      "pages": [
+        9
+      ],
+      "image": "assets/p9_table_1.png",
+      "y": 74.0,
+      "caption_en": "Synthetic regression paragraph 057. The pooled estimate was 0.54 (95% CI 0.47-0.61); values 1.5 and 450 were recorded.",
+      "note_en": "Synthetic regression paragraph 057. The pooled estimate was 0.54 (95% CI 0.47-0.61); values 1.5 and 450 were recorded.",
+      "caption_zh": "合成回归段落 057。合并估计值为 0.54（95% 置信区间 0.47–0.61）；记录数值 1.5 与 450。",
+      "note_zh": "合成回归段落 057。合并估计值为 0.54（95% 置信区间 0.47–0.61）；记录数值 1.5 与 450。"
+    },
+    {
+      "id": "p9-table-p9_table_2",
+      "kind": "table",
+      "pages": [
+        9
+      ],
+      "image": "assets/p9_table_2.png",
+      "y": 495.0,
+      "caption_en": "Synthetic regression paragraph 058. The pooled estimate was 0.54 (95% CI 0.47-0.61); values 1.5 and 450 were recorded.",
+      "note_en": "Synthetic regression paragraph 058. The pooled estimate was 0.54 (95% CI 0.47-0.61); values 1.5 and 450 were recorded.",
+      "caption_zh": "合成回归段落 058。合并估计值为 0.54（95% 置信区间 0.47–0.61）；记录数值 1.5 与 450。",
+      "note_zh": "合成回归段落 058。合并估计值为 0.54（95% 置信区间 0.47–0.61）；记录数值 1.5 与 450。"
+    },
+    {
+      "id": "p10-0",
+      "kind": "para",
+      "pages": [
+        10
+      ],
+      "en": "Synthetic regression paragraph 059. The pooled estimate was 0.54 (95% CI 0.47-0.61); values 1.5 and 450 were recorded.",
+      "zh": "合成回归段落 059。合并估计值为 0.54（95% 置信区间 0.47–0.61）；记录数值 1.5 与 450。",
+      "size": 9.5
+    },
+    {
+      "id": "p10-1",
+      "kind": "para",
+      "pages": [
+        10
+      ],
+      "en": "Synthetic regression paragraph 060. The pooled estimate was 0.54 (95% CI 0.47-0.61); values 1.5 and 450 were recorded.",
+      "zh": "合成回归段落 060。合并估计值为 0.54（95% 置信区间 0.47–0.61）；记录数值 1.5 与 450。",
+      "size": 9.5
+    },
+    {
+      "id": "p10-5",
+      "kind": "para",
+      "pages": [
+        10
+      ],
+      "en": "Synthetic regression paragraph 061. The pooled estimate was 0.54 (95% CI 0.47-0.61); values 1.5 and 450 were recorded.",
+      "zh": "合成回归段落 061。合并估计值为 0.54（95% 置信区间 0.47–0.61）；记录数值 1.5 与 450。",
+      "size": 9.5
+    },
+    {
+      "id": "p10-6",
+      "kind": "heading",
+      "pages": [
+        10
+      ],
+      "en": "Synthetic regression paragraph 062. The pooled estimate was 0.54 (95% CI 0.47-0.61); values 1.5 and 450 were recorded.",
+      "zh": "合成回归段落 062。合并估计值为 0.54（95% 置信区间 0.47–0.61）；记录数值 1.5 与 450。",
+      "size": 12.0
+    },
+    {
+      "id": "p10-7",
+      "kind": "para",
+      "pages": [
+        10
+      ],
+      "en": "Synthetic regression paragraph 063. The pooled estimate was 0.54 (95% CI 0.47-0.61); values 1.5 and 450 were recorded.",
+      "zh": "合成回归段落 063。合并估计值为 0.54（95% 置信区间 0.47–0.61）；记录数值 1.5 与 450。",
+      "size": 9.5
+    },
+    {
+      "id": "p10-2",
+      "kind": "para",
+      "pages": [
+        10
+      ],
+      "en": "Synthetic regression paragraph 064. The pooled estimate was 0.54 (95% CI 0.47-0.61); values 1.5 and 450 were recorded.",
+      "zh": "合成回归段落 064。合并估计值为 0.54（95% 置信区间 0.47–0.61）；记录数值 1.5 与 450。",
+      "size": 9.5
+    },
+    {
+      "id": "p10-8",
+      "kind": "heading",
+      "pages": [
+        10
+      ],
+      "en": "Synthetic regression paragraph 065. The pooled estimate was 0.54 (95% CI 0.47-0.61); values 1.5 and 450 were recorded.",
+      "zh": "合成回归段落 065。合并估计值为 0.54（95% 置信区间 0.47–0.61）；记录数值 1.5 与 450。",
+      "size": 12.0
+    },
+    {
+      "id": "p10-9",
+      "kind": "para",
+      "pages": [
+        10
+      ],
+      "en": "Synthetic regression paragraph 066. The pooled estimate was 0.54 (95% CI 0.47-0.61); values 1.5 and 450 were recorded.",
+      "zh": "合成回归段落 066。合并估计值为 0.54（95% 置信区间 0.47–0.61）；记录数值 1.5 与 450。",
+      "size": 9.5
+    },
+    {
+      "id": "p10-10",
+      "kind": "heading",
+      "pages": [
+        10
+      ],
+      "en": "Synthetic regression paragraph 067. The pooled estimate was 0.54 (95% CI 0.47-0.61); values 1.5 and 450 were recorded.",
+      "zh": "合成回归段落 067。合并估计值为 0.54（95% 置信区间 0.47–0.61）；记录数值 1.5 与 450。",
+      "size": 12.0
+    },
+    {
+      "id": "p10-11",
+      "kind": "para",
+      "pages": [
+        10
+      ],
+      "en": "Synthetic regression paragraph 068. The pooled estimate was 0.54 (95% CI 0.47-0.61); values 1.5 and 450 were recorded.",
+      "zh": "合成回归段落 068。合并估计值为 0.54（95% 置信区间 0.47–0.61）；记录数值 1.5 与 450。",
+      "size": 9.5
+    },
+    {
+      "id": "p10-3",
+      "kind": "para",
+      "pages": [
+        10
+      ],
+      "en": "Synthetic regression paragraph 069. The pooled estimate was 0.54 (95% CI 0.47-0.61); values 1.5 and 450 were recorded.",
+      "zh": "合成回归段落 069。合并估计值为 0.54（95% 置信区间 0.47–0.61）；记录数值 1.5 与 450。",
+      "size": 9.5,
+      "continued": true
+    },
+    {
+      "id": "p10-12",
+      "kind": "heading",
+      "pages": [
+        10
+      ],
+      "en": "Synthetic regression paragraph 070. The pooled estimate was 0.54 (95% CI 0.47-0.61); values 1.5 and 450 were recorded.",
+      "zh": "合成回归段落 070。合并估计值为 0.54（95% 置信区间 0.47–0.61）；记录数值 1.5 与 450。",
+      "size": 12.0
+    },
+    {
+      "id": "p10-13",
+      "kind": "para",
+      "pages": [
+        10
+      ],
+      "en": "Synthetic regression paragraph 071. The pooled estimate was 0.54 (95% CI 0.47-0.61); values 1.5 and 450 were recorded.",
+      "zh": "合成回归段落 071。合并估计值为 0.54（95% 置信区间 0.47–0.61）；记录数值 1.5 与 450。",
+      "size": 9.5
+    },
+    {
+      "id": "p10-14",
+      "kind": "heading",
+      "pages": [
+        10
+      ],
+      "en": "Synthetic regression paragraph 072. The pooled estimate was 0.54 (95% CI 0.47-0.61); values 1.5 and 450 were recorded.",
+      "zh": "合成回归段落 072。合并估计值为 0.54（95% 置信区间 0.47–0.61）；记录数值 1.5 与 450。",
+      "size": 12.0
+    },
+    {
+      "id": "p10-15",
+      "kind": "para",
+      "pages": [
+        10
+      ],
+      "en": "Synthetic regression paragraph 073. The pooled estimate was 0.54 (95% CI 0.47-0.61); values 1.5 and 450 were recorded.",
+      "zh": "合成回归段落 073。合并估计值为 0.54（95% 置信区间 0.47–0.61）；记录数值 1.5 与 450。",
+      "size": 9.5
+    },
+    {
+      "id": "p11-0",
+      "kind": "heading",
+      "pages": [
+        11
+      ],
+      "en": "Synthetic Author 074, Synthetic Journal, vol. 12, pp. 34-56, 2020.",
+      "zh": "Synthetic Author 074, Synthetic Journal, vol. 12, pp. 34-56, 2020.",
+      "size": 12.0,
+      "no_translate": true
+    },
+    {
+      "id": "p11-1",
+      "kind": "para",
+      "pages": [
+        11
+      ],
+      "en": "Synthetic Author 075, Synthetic Journal, vol. 12, pp. 34-56, 2020.",
+      "zh": "",
+      "size": 7.5,
+      "continued": true,
+      "no_translate": true
+    },
+    {
+      "id": "p11-3",
+      "kind": "para",
+      "pages": [
+        11
+      ],
+      "en": "Synthetic regression paragraph 076. The pooled estimate was 0.54 (95% CI 0.47-0.61); values 1.5 and 450 were recorded.",
+      "zh": "合成回归段落 076。合并估计值为 0.54（95% 置信区间 0.47–0.61）；记录数值 1.5 与 450。",
+      "size": 7.5
+    },
+    {
+      "id": "p11-4",
+      "kind": "para",
+      "pages": [
+        11
+      ],
+      "en": "Synthetic regression paragraph 077. The pooled estimate was 0.54 (95% CI 0.47-0.61); values 1.5 and 450 were recorded.",
+      "zh": "合成回归段落 077。合并估计值为 0.54（95% 置信区间 0.47–0.61）；记录数值 1.5 与 450。",
+      "size": 7.5
+    }
+  ],
+  "_synthetic": true
+}

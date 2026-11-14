@@ -1,0 +1,21 @@
+{
+  "case": "dimitrov2026_extract",
+  "kind": "extraction",
+  "assertions": {
+    "pages": 19,
+    "paragraphs": 132,
+    "must_contain": [
+      "SYNTHETIC-ANCHOR-03-01",
+      "SYNTHETIC-ANCHOR-03-02"
+    ],
+    "must_not_contain": [
+      "g g Despite",
+      "p f q y",
+      "Ojecive"
+    ],
+    "missing_must_contain": [],
+    "found_forbidden": []
+  },
+  "pdf_name": "SYNTHETIC-CASE-03.pdf",
+  "synthetic": true
+}

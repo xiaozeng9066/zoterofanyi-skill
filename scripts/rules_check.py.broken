@@ -1,0 +1,239 @@
+﻿#!/usr/bin/env python3
+"""鎸夈€婄鐮旇鏂囩炕璇戜笌鏍″璐ㄩ噺鎺у埗瑙勫垯銆嬪仛鏈烘瀹℃煡锛坮ules_check锛夈€?
+
+璁捐绔嬪満锛氳繖浜涙鏌ュ彧瑕嗙洊"鍙瘉浼?鐨勯」锛涘畠浠煡涓嶅嚭璇戝緱濂戒笉濂斤紝
+浣嗚兘鏌ュ嚭**瑙勫垯鏄庢枃绂佹鐨勫舰鎬?*锛?
+  R1.3 鐩稿叧鎬ц鎻愬崌涓哄洜鏋?
+  R1.4 闄愬畾璇?鍚﹀畾璇?姣旇緝鍏崇郴涓㈠け
+  R2.2 姒傚康娣风敤锛坥besity/overweight/bodyweight/waist/BMI锛?
+  R2.3-2.4 璁￠噺鏈鏈寜绾﹀畾
+  R3.1 鍙ュ瓙琚埅鏂?
+  R3.2 娈佃惤缂?ID/椤电爜/绔犺妭褰掑睘
+  R4.6 鑴氭敞涓婃爣銆佽〃鍥剧紪鍙峰搴?
+  R5.1 瑕嗙洊鐜囷紙姣忔閮芥湁璇戞枃锛?
+
+杈撳嚭锛欽SON锛堜緵楠屾敹鎶ュ憡寮曠敤锛? 鎺у埗鍙版憳瑕併€傛瘡鏉″懡涓兘缁欏嚭 id銆佽瘉鎹墖娈碉紝渚夸簬浜哄伐瑁佸喅銆?
+缁濅笉鑷姩鏀硅瘧鏂団€斺€旇鍐虫潈鍦ㄤ汉銆?
+"""
+import argparse
+import json
+import re
+from collections import Counter
+from pathlib import Path
+
+# ---- R1.3 鐩稿叧鎬?vs 鍥犳灉 ----
+ASSOC_EN = re.compile(
+    r"\b(associated with|correlated with|correlation|is related to|relationship between"
+    r"|linked to|predict(s|ed)?|association)\b", re.I)
+CAUSAL_EN = re.compile(
+    r"\b(cause[sd]?|causal|lead(s|ing)? to|result(s|ing)? in|effect of|impact of"
+    r"|influence[sd]?|increase[sd]?|reduce[sd]?|determinant)\b", re.I)
+CAUSAL_ZH = ["瀵艰嚧", "寮曡捣", "閫犳垚", "鑷翠娇", "鍐冲畾浜?, "璇佹槑浜?, "蹇呯劧", "涓€瀹氫細"]
+
+# ---- R1.4 闄愬畾璇?/ 鍚﹀畾 / 姣旇緝 ----
+HEDGE_EN = re.compile(r"\b(may|might|could|suggest(s|ed)?|appear(s|ed)?|likely|possibly"
+                      r"|potentially|tend(s|ed)? to|seem(s|ed)?|plausib\w+|prima facie)\b", re.I)
+HEDGE_ZH = ["涓嶅簲", "涓嶅疁", "涓嶅彲", "鍙兘", "鎴栬", "涔熻", "浼间箮", "鎻愮ず", "鍊惧悜浜?, "鏈夋湜", "鏈繀", "琛ㄩ潰涓?, "澶ц嚧", "鑳藉惁",
+            "閫氬父", "涓€鑸?, "鏅亶", "鍏稿瀷", "寰€寰€", "澶т綋", "澶氬崐", "涓€瀹氱▼搴?, "閮ㄥ垎", "澶х害", "鍒濇", "绮楃暐", "寤鸿", "鍙В閲?, "鍙杩?, "瀹规槗", "鍙湜", "鏄撲簬"]
+# 杩欎簺涓嶆槸鍚﹀畾锛歸hether or not / Yes or No / yes-no
+NEG_NOISE = re.compile(r"whether\s+or\s+not|\bYes\s+or\s+No\b|yes/no", re.I)
+NEG_EN = re.compile(r"\b(not|no(?!\.)|never|none|neither|nor|without|fail(s|ed)? to|cannot"
+                    r"|isn't|aren't|doesn't|don't|didn't|is not|are not)\b", re.I)
+NEG_ZH = ["涓?, "鏃?, "鏈?, "娌℃湁", "骞堕潪", "缂轰箯", "鏃犳硶", "涓嶈兘", "鏈彂鐜?, "娌℃湁璇佹嵁", "鎺掗櫎", "闄ゅ", "鍓旈櫎",
+          "浠ュ厤", "閬垮厤", "涓嶈嚧", "鏈兘", "灏氭湭", "鍏嶄簬", "鏃犻』", "涓嶅繀", "鎷掔粷", "闆?]
+COMP_EN = re.compile(r"\b(more|less|higher|lower|greater|smaller|stronger|weaker|larger|fewer"
+                     r"|better|worse)\b\s+\w*\s*\bthan\b", re.I)
+COMP_ZH = ["楂樹簬", "浣庝簬", "寮轰簬", "寮变簬", "澶т簬", "灏忎簬", "澶氫簬", "灏戜簬", "鏇?, "鐩告瘮", "杈?]
+
+# ---- R2.2 姒傚康鍖哄垎 ----
+CONCEPTS = [
+    (re.compile(r"\bobesity\b", re.I), "鑲ヨ儢", "瓒呴噸"),
+    (re.compile(r"\boverweight\b", re.I), "瓒呴噸", "鑲ヨ儢"),
+    (re.compile(r"\bbody\s?weight\b", re.I), "浣撻噸", None),
+    (re.compile(r"\bwaist circumference\b", re.I), "鑵板洿", None),
+    (re.compile(r"\bBMI\b"), "BMI", None),
+]
+
+# ---- R2.3 / R2.4 璁￠噺鏈 ----
+TERMS = [
+    ("correlated effects", ["鍏宠仈鏁堝簲"]),
+    ("contextual effects", ["鎯呭鏁堝簲", "璇鏁堝簲"]),
+    ("reflection problem", ["鍙嶅皠闂"]),
+    ("fixed effects", ["鍥哄畾鏁堝簲"]),
+    ("random effects", ["闅忔満鏁堝簲"]),
+    ("marginal effects", ["杈归檯鏁堝簲"]),
+    ("quantile regression", ["鍒嗕綅鏁板洖褰?]),
+    ("instrumental variable", ["宸ュ叿鍙橀噺"]),
+    ("translog", ["瓒呰秺瀵规暟"]),
+    ("identification strategy", ["璇嗗埆绛栫暐"]),
+    ("robust standard errors", ["绋冲仴鏍囧噯璇?]),
+    ("ordered probit", ["鏈夊簭 probit", "鏈夊簭probit"]),
+    ("endogeneity", ["鍐呯敓鎬?]),
+    ("dummy variable", ["铏氭嫙鍙橀噺"]),
+    ("confidence interval", ["缃俊鍖洪棿"]),
+]
+
+TERM_END = re.compile(r"[.!?:;銆傦紒锛燂細锛?锛塡"鈥濃€橾\s*$")
+SUP_RE = re.compile(r"\^\{([^}]*)\}")
+TAB_EN = re.compile(r"\bTable\s+([A]?\d+)", re.I)
+TAB_ZH = re.compile(r"琛╘s*([A]?\d+)")
+FIG_EN = re.compile(r"\bFigure\s+([A]?\d+)", re.I)
+FIG_ZH = re.compile(r"鍥綷s*([A]?\d+)")
+
+
+def hits(patterns, text):
+    return [p for p in patterns if (p.search(text) if hasattr(p, "search") else p in text)]
+
+
+def main():
+    ap = argparse.ArgumentParser()
+    ap.add_argument("bilingual")
+    ap.add_argument("--out", required=True)
+    ap.add_argument("--augmented", default="", help="鍐欏嚭甯?section 褰掑睘鐨勫寮虹増 JSON")
+    ap.add_argument("--term-exceptions", default="", help="宸插妗堢殑鏈渚嬪锛圝SON 鏁扮粍锛?)
+    a = ap.parse_args()
+    doc = json.loads(Path(a.bilingual).read_text(encoding="utf-8"))
+    blocks = doc["blocks"]
+    # 鏈鏈熸湜鍊间互**鏂囨。鏈琛?*涓哄噯锛堝崟涓€浜嬪疄鏉ユ簮锛夛紝纭紪鐮佹竻鍗曞彧浣滃厹搴?
+    doc_terms = []
+    for pair in (doc.get("glossary") or []):
+        if isinstance(pair, (list, tuple)) and len(pair) == 2 and str(pair[0]).strip():
+            doc_terms.append((str(pair[0]).strip(), [str(pair[1]).strip()]))
+
+    # 宸插妗堢殑鏈渚嬪锛氭湳璇〃涓庤澧冧笉绗︽椂锛屽厑璁哥粡浜哄伐鎵瑰噯鐨勬浛浠ｈ瘧娉?
+    exc = {}
+    if a.term_exceptions and Path(a.term_exceptions).exists():
+        for e in json.loads(Path(a.term_exceptions).read_text(encoding="utf-8")):
+            exc[e["term"].lower()] = e["approved_zh"]
+    findings = []
+
+    def add(rule, level, bid, msg, ev=""):
+        findings.append({"rule": rule, "level": level, "id": bid, "msg": msg, "evidence": ev[:220]})
+
+    # R3.2 绔犺妭褰掑睘 + R5.1 瑕嗙洊鐜?
+    section = None
+    no_section = 0
+    for i, b in enumerate(blocks):
+        if b.get("kind") == "heading":
+            section = (b.get("zh") or b.get("en") or "").strip()[:60]
+        b["section"] = section or "锛堟枃棣?鎽樿鍓嶏級"
+        if not section:
+            no_section += 1
+        if b.get("no_translate"):
+            continue
+        en = b.get("en") or b.get("caption_en") or ""
+        zh = b.get("zh") or b.get("caption_zh") or ""
+        if en.strip() and not zh.strip():
+            add("R5.1", "FAIL", b["id"], "鏈夊師鏂囦絾鏃犺瘧鏂囷紙瑕嗙洊鐜囩己鍙ｏ級", en[:120])
+        if not b.get("pages"):
+            add("R3.2", "FAIL", b["id"], "缂哄師鏂囬〉鐮?, en[:80])
+        if b.get("kind") == "para" and en:
+            core = re.sub(r"\^\{[^}]*\}\s*$", "", en.rstrip())
+            non_sentence = (not re.search(r"[.!?]", core) and (
+                "@" in core or re.search(r"\b(University|Institute|College|Department|E-mail"
+                                         r"|Keywords|JEL)\b", core) or re.search(r"\d=\w+", core)))
+            follows_equation = (i + 1 < len(blocks) and blocks[i + 1].get("kind") == "equation")
+            if not TERM_END.search(core) and not non_sentence and not follows_equation:
+                add("R3.1", "WARN", b["id"], "娈佃惤鏈互缁堟鏍囩偣缁撳熬锛堝彲鑳借鎴柇锛?, core[-90:])
+        for k in ("id",):
+            if not b.get(k):
+                add("R3.2", "FAIL", "?", "鍧楃己鍞竴 ID")
+
+    # 閫愬潡瑙勫垯妫€鏌?
+    for b in blocks:
+        if b.get("no_translate"):
+            continue
+        en = b.get("en") or b.get("caption_en") or ""
+        zh = b.get("zh") or b.get("caption_zh") or ""
+        if not en.strip() or not zh.strip():
+            continue
+        bid = b["id"]
+
+        # R1.3
+        if ASSOC_EN.search(en) and not CAUSAL_EN.search(en):
+            bad = [w for w in CAUSAL_ZH if w in zh]
+            if bad:
+                add("R1.3", "FAIL", bid, f"鍘熸枃涓虹浉鍏?棰勬祴琛ㄨ堪锛岃瘧鏂囧嚭鐜板洜鏋滆瘝 {bad}",
+                    f"EN: {en[:110]} || ZH: {zh[:110]}")
+
+        # R1.4 闄愬畾璇?
+        # "could not / may not / might not" 鏄惁瀹氾紝涓嶆槸闄愬畾锛涗笉鎽樺嚭鍘讳細琚綋鎴?闄愬畾璇嶄涪澶?
+        en_hedge = re.sub(r"\b(could|may|might|can|would|will)\s+not\b", " ", en)
+        if HEDGE_EN.search(en_hedge) and not any(h in zh for h in HEDGE_ZH):
+            add("R1.4", "FAIL", bid, "鍘熸枃鏈夐檺瀹?涓嶇‘瀹氳〃杩帮紝璇戞枃鏈瀵瑰簲闄愬畾璇?,
+                f"EN: {en[:110]} || ZH: {zh[:110]}")
+        # R1.4 鍚﹀畾
+        en_neg = NEG_NOISE.sub(' ', en)
+        if NEG_EN.search(en_neg) and not any(n in zh for n in NEG_ZH):
+            add("R1.4", "FAIL", bid, "鍘熸枃鏈夊惁瀹氾紝璇戞枃鏈鍚﹀畾",
+                f"EN: {en[:110]} || ZH: {zh[:110]}")
+        # R1.4 姣旇緝
+        if COMP_EN.search(en) and not any(c in zh for c in COMP_ZH):
+            add("R1.4", "WARN", bid, "鍘熸枃鏈夋瘮杈冪骇锛岃瘧鏂囨湭瑙佹瘮杈冭〃杩?,
+                f"EN: {en[:110]} || ZH: {zh[:100]}")
+
+        # R2.2 姒傚康鍖哄垎
+        for rx, want, wrong in CONCEPTS:
+            if rx.search(en) and want not in zh:
+                add("R2.2", "WARN", bid, f"鍘熸枃鍚€寋want}銆嶇浉鍏虫蹇碉紝璇戞枃鏈嚭鐜般€寋want}銆?,
+                    f"ZH: {zh[:110]}")
+            if wrong and rx.search(en) and wrong in zh and want not in zh:
+                add("R2.2", "FAIL", bid, f"姒傚康鐤戜技娣风敤锛氬簲涓恒€寋want}銆嶏紝璇戞枃鍑虹幇銆寋wrong}銆?,
+                    f"ZH: {zh[:110]}")
+
+        # R2.3/2.4 鏈
+        for term, wants in (doc_terms or TERMS):
+            wants = exc.get(term.lower(), wants)
+            # 鎺ュ彈绠€绉帮紙棣栨鍑虹幇缁欏叏绉般€佸叾浣欑敤绠€绉版槸瀛︽湳鎯緥锛変笌"鍘熸枃淇濈暀鑻辨枃"涓ょ姝ｅ綋鍐欐硶
+            cand = []
+            for w in wants:
+                cand.append(w)
+                short = re.sub(r"[锛?][^锛?]*[锛?]", "", w).strip()
+                if short and short not in cand:
+                    cand.append(short)
+            cand.append(term)          # 鏁呮剰淇濈暀鑻辨枃鏈鐨勬儏鍐?
+            if re.search(r"\b" + re.escape(term) + r"\b", en, re.I) and not any(w in zh for w in cand):
+                add("R2.3", "WARN", bid, f"璁￠噺鏈銆寋term}銆嶆湭鐢ㄧ害瀹氳瘧娉?{wants}",
+                    f"ZH: {zh[:110]}")
+
+        # R4.6 鑴氭敞涓婃爣 / 琛ㄥ浘缂栧彿
+        en_sup, zh_sup = Counter(SUP_RE.findall(en)), Counter(SUP_RE.findall(zh))
+        lost = [k for k in en_sup if en_sup[k] > zh_sup.get(k, 0)]
+        if lost:
+            add("R4.6", "WARN", bid, f"鍘熸枃涓婃爣鏍囪鍦ㄨ瘧鏂囦腑缂哄け鎴栨暟閲忓噺灏? {lost[:5]}",
+                f"EN sup={dict(en_sup)} ZH sup={dict(zh_sup)}")
+        et, zt = set(TAB_EN.findall(en)), set(TAB_ZH.findall(zh))
+        if et - zt:
+            add("R4.6", "WARN", bid, f"琛ㄥ彿鏈搴? {sorted(et - zt)}")
+        ef, zf = set(FIG_EN.findall(en)), set(FIG_ZH.findall(zh))
+        if ef - zf:
+            add("R4.6", "WARN", bid, f"鍥惧彿鏈搴? {sorted(ef - zf)}")
+
+    # 姹囨€?
+    by_rule = Counter((f["rule"], f["level"]) for f in findings)
+    print(f"=== rules_check: {a.bilingual}锛坽len(blocks)} 鍧楋級===")
+    for (rule, level), n in sorted(by_rule.items()):
+        print(f"  {rule:<6} {level:<5} {n}")
+    for f in findings:
+        if f["level"] == "FAIL":
+            print(f"\n[FAIL {f['rule']}] {f['id']} {f['msg']}")
+            if f["evidence"]:
+                print(f"   {f['evidence']}")
+    print(f"\n鍚堣 FAIL {sum(1 for f in findings if f['level']=='FAIL')} / "
+          f"WARN {sum(1 for f in findings if f['level']=='WARN')} | 鏃犵珷鑺傚綊灞炲潡 {no_section}")
+
+    Path(a.out).parent.mkdir(parents=True, exist_ok=True)
+    Path(a.out).write_text(json.dumps({
+        "source": a.bilingual, "blocks": len(blocks),
+        "by_rule": {f"{k[0]}/{k[1]}": v for k, v in by_rule.items()},
+        "findings": findings, "no_section": no_section,
+    }, ensure_ascii=False, indent=2), encoding="utf-8")
+    if a.augmented:
+        Path(a.augmented).write_text(json.dumps(doc, ensure_ascii=False, indent=2), encoding="utf-8")
+        print(f"澧炲己鐗堬紙鍚?section 褰掑睘锛?> {a.augmented}")
+    print(f"鎶ュ憡 -> {a.out}")
+
+
+if __name__ == "__main__":
+    main()
+

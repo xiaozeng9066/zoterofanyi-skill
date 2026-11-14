@@ -1,0 +1,11 @@
+# 固定行尾，避免 Windows / 类 Unix 之间 checkout 造成整文件 diff 噪音。
+*.py    text eol=lf
+*.sh    text eol=lf
+*.md    text eol=lf
+*.json  text eol=lf
+*.jsonl text eol=lf
+*.yml   text eol=lf
+*.yaml  text eol=lf
+*.broken text eol=lf
+.gitignore     text eol=lf
+.gitattributes text eol=lf

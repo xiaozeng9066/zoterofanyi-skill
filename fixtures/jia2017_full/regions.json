@@ -1,0 +1,108 @@
+{
+  "source_pdf": "<WORKSPACE>/zotero-translate/<KEY>/source.pdf",
+  "pages": [
+    {
+      "page": 1,
+      "regions": [],
+      "inline_math": []
+    },
+    {
+      "page": 2,
+      "regions": [
+        {
+          "kind": "figure",
+          "file": "p2_figure_1.png",
+          "rect": [
+            53.0,
+            427.0,
+            554.0,
+            710.0
+          ],
+          "dpi": 300,
+          "caption_en": "Synthetic regression paragraph 002. The pooled estimate was 0.54 (95% CI 0.47-0.61); values 1.5 and 450 were recorded."
+        }
+      ],
+      "inline_math": []
+    },
+    {
+      "page": 3,
+      "regions": [],
+      "inline_math": []
+    },
+    {
+      "page": 4,
+      "regions": [
+        {
+          "kind": "table",
+          "file": "p4_table_1.png",
+          "rect": [
+            45.0,
+            136.5,
+            558.0,
+            399.0
+          ],
+          "dpi": 300,
+          "caption_en": "Synthetic regression paragraph 003. The pooled estimate was 0.54 (95% CI 0.47-0.61); values 1.5 and 450 were recorded.",
+          "note_en": "Synthetic regression paragraph 004. The pooled estimate was 0.54 (95% CI 0.47-0.61); values 1.5 and 450 were recorded."
+        },
+        {
+          "kind": "table",
+          "file": "p4_table_2.png",
+          "rect": [
+            45.0,
+            465.0,
+            560.0,
+            708.0
+          ],
+          "dpi": 300,
+          "caption_en": "Synthetic regression paragraph 005. The pooled estimate was 0.54 (95% CI 0.47-0.61); values 1.5 and 450 were recorded.",
+          "note_en": "Synthetic regression paragraph 006. The pooled estimate was 0.54 (95% CI 0.47-0.61); values 1.5 and 450 were recorded."
+        }
+      ],
+      "inline_math": []
+    },
+    {
+      "page": 5,
+      "regions": [
+        {
+          "kind": "table",
+          "file": "p5_table_1.png",
+          "rect": [
+            34.0,
+            84.0,
+            551.0,
+            440.0
+          ],
+          "dpi": 300,
+          "caption_en": "Synthetic regression paragraph 007. The pooled estimate was 0.54 (95% CI 0.47-0.61); values 1.5 and 450 were recorded.",
+          "note_en": "Synthetic regression paragraph 008. The pooled estimate was 0.54 (95% CI 0.47-0.61); values 1.5 and 450 were recorded."
+        }
+      ],
+      "inline_math": []
+    },
+    {
+      "page": 6,
+      "regions": [
+        {
+          "kind": "table",
+          "file": "p6_table_1.png",
+          "rect": [
+            44.0,
+            73.9,
+            560.0,
+            268.0
+          ],
+          "dpi": 300,
+          "caption_en": "Synthetic regression paragraph 009. The pooled estimate was 0.54 (95% CI 0.47-0.61); values 1.5 and 450 were recorded."
+        }
+      ],
+      "inline_math": []
+    },
+    {
+      "page": 7,
+      "regions": [],
+      "inline_math": []
+    }
+  ],
+  "_synthetic": true
+}

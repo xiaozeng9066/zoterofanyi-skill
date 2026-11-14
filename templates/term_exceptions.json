@@ -1,0 +1,10 @@
+[
+  {
+    "term": "translog",
+    "glossary_zh": "超越对数",
+    "approved_zh": ["对数", "对数化"],
+    "reason": "本文语境为单变量取对数（表注明言 All models are in log-log forms、translog household net income），指对数变换而非超越对数函数形式；已在译文正文标注「原文作 translog，此处按对数变换理解；待核对」，提请人工确认。",
+    "approved_by": "译者（待用户确认）",
+    "date": "2026-10-17"
+  }
+]

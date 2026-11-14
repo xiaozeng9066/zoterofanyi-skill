@@ -1,0 +1,18 @@
+{
+  "case": "moreira2020_extract",
+  "kind": "extraction",
+  "assertions": {
+    "pages": 17,
+    "paragraphs": 111,
+    "must_contain": [
+      "SYNTHETIC-ANCHOR-07-01"
+    ],
+    "must_not_contain": [
+      "Ojecive"
+    ],
+    "missing_must_contain": [],
+    "found_forbidden": []
+  },
+  "pdf_name": "SYNTHETIC-CASE-07.pdf",
+  "synthetic": true
+}

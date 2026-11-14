@@ -1,0 +1,18 @@
+{
+  "case": "williams2015_extract",
+  "kind": "extraction",
+  "assertions": {
+    "pages": 23,
+    "paragraphs": 93,
+    "must_contain": [
+      "SYNTHETIC-ANCHOR-13-01"
+    ],
+    "must_not_contain": [
+      "Ojecive"
+    ],
+    "missing_must_contain": [],
+    "found_forbidden": []
+  },
+  "pdf_name": "SYNTHETIC-CASE-13.pdf",
+  "synthetic": true
+}

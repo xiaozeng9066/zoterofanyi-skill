@@ -1,0 +1,18 @@
+{
+  "case": "jia2017_extract",
+  "kind": "extraction",
+  "assertions": {
+    "pages": 7,
+    "paragraphs": 75,
+    "must_contain": [
+      "SYNTHETIC-ANCHOR-05-01"
+    ],
+    "must_not_contain": [
+      "Ojecive"
+    ],
+    "missing_must_contain": [],
+    "found_forbidden": []
+  },
+  "pdf_name": "SYNTHETIC-CASE-05.pdf",
+  "synthetic": true
+}

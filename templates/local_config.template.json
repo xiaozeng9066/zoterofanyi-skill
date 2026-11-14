@@ -1,0 +1,28 @@
+{
+  "_comment": "本机配置模板。由 scripts/detect_env.py 生成 skill 根目录下的 local_config.json。模板入库，本机配置绝不入库（见 .gitignore）。",
+  "schema_version": 1,
+  "generated_at": null,
+  "machine": null,
+  "os": null,
+  "home": null,
+  "skill_root": null,
+  "scripts_dir": null,
+  "python": null,
+  "python_has_fitz": false,
+  "mineru_python": null,
+  "browser": null,
+  "zotero_mcp": null,
+  "workspace": null,
+  "runs_dir": null,
+  "cloud_dirs": [],
+  "sync": {
+    "mode": "git-remote",
+    "remote_name": "origin",
+    "remote_url": null,
+    "cloud_bare": null,
+    "auto_pull": true,
+    "_comment": "mode: git-remote | cloud-bare | bundle。remote_url / cloud_bare 由 bootstrap.py --init-sync 或手工 git remote 填写，detect_env.py 不覆盖。"
+  },
+  "overrides": {},
+  "warnings": []
+}

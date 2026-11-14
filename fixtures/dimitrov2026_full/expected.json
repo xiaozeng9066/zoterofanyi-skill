@@ -1,0 +1,23 @@
+{
+  "case": "dimitrov2026_full",
+  "kind": "full",
+  "assertions": {
+    "blocks": 139,
+    "footnotes": 1,
+    "tables": 3,
+    "figures": 11,
+    "equations": 0,
+    "pdf_name": "Dimitrov 2026 Sci Rep 16_3774.pdf",
+    "qa": {
+      "fail": 0
+    },
+    "rules": {
+      "fail": 0
+    },
+    "audit": {
+      "fail": 0
+    }
+  },
+  "pdf_name": "SYNTHETIC-CASE-04.pdf",
+  "synthetic": true
+}

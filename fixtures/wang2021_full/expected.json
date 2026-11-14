@@ -1,0 +1,23 @@
+{
+  "case": "wang2021_full",
+  "kind": "full",
+  "assertions": {
+    "blocks": 77,
+    "footnotes": 1,
+    "tables": 4,
+    "figures": 6,
+    "equations": 1,
+    "pdf_name": "Wang 2021 Front Med 8_662045.pdf",
+    "qa": {
+      "fail": 0
+    },
+    "rules": {
+      "fail": 0
+    },
+    "audit": {
+      "fail": 0
+    }
+  },
+  "pdf_name": "SYNTHETIC-CASE-12.pdf",
+  "synthetic": true
+}
