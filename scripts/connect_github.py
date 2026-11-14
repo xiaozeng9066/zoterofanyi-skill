@@ -44,6 +44,24 @@ class ConnectError(Exception):
     pass
 
 
+def _opener():
+    """规则 61：探测到 GitHub 可直连时绕过代理。
+
+    本机实测（2026-11-14）：HTTPS_PROXY 对 api.github.com 时好时坏、对
+    github.com:443 的 CONNECT 隧道约半数 502；直连更稳定。选路结果写在
+    local_config.json 的 network 段（detect_env.py 探测），此处只读不探测。
+    """
+    net = {}
+    try:
+        net = (json.loads((ROOT / "local_config.json").read_text(encoding="utf-8"))
+               .get("network") or {})
+    except (OSError, ValueError):
+        net = {}
+    if net.get("github_direct_ok") and net.get("force") != "proxy":
+        return urllib.request.build_opener(urllib.request.ProxyHandler({}))
+    return urllib.request.build_opener()
+
+
 def git(*args: str, check: bool = True, timeout: int = 90) -> subprocess.CompletedProcess:
     proc = subprocess.run(
         ["git", "-C", str(ROOT), *args],
@@ -116,7 +134,7 @@ def create_repo(token: str, repo: str, private: bool, dry_run: bool) -> str:
     if dry_run:
         return f"[dry-run] 将调用 POST /user/repos 创建 {'private' if private else 'public'} 仓库 {repo}"
     try:
-        with urllib.request.urlopen(req, timeout=30) as resp:
+        with _opener().open(req, timeout=30) as resp:
             data = json.loads(resp.read().decode("utf-8"))
             return f"已创建{'私有' if private else '公开'}仓库：{data.get('full_name', repo)}"
     except urllib.error.HTTPError as exc:

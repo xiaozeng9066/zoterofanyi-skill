@@ -7,6 +7,45 @@
 > **本库为公开主库（v2.8 起，拓扑 B）**：历史从 v2.8 干净初始提交起算；
 > v2.2–v2.7 的完整迭代史在私有归档库 `xiaozeng9066/zoterofanyi-skill-archive`。
 
+## v2.10 — 2026-11-14 · GitHub 双路网络策略（直连优先 + 自动回落，规则 61）
+
+**背景**：用户问「是不是设置过不让走代理，git/github 是否在白名单外」。查证结果：
+WorkBuddy 的 `sandbox.orderedRules.network` 为空预设（没有自定义拦截），`NO_PROXY` 只有
+`127.0.0.1,localhost,::1` —— 所以**不是白名单漏了，而是 GitHub 被强行塞进本地代理**，
+而这个代理对 `github.com:443` 的 CONNECT 约半数返回 502。实测同一时刻：
+`api.github.com` 经代理 HTTP 200、`github.com` 经代理 502、清空代理后 git 直连 3/3 成功（~0.5s）。
+
+**指标实测**
+
+- **准确**：`detect_env.py` 新增双向探测（直连 / 代理各一次，用显式 `-c` 覆盖环境与全局配置，
+  两条路互不污染），结果写入 `local_config.json` 的 `network` 段；
+  `sync_now.py` 按 `chosen` 排序，**首选失败自动回落另一条**；`connect_github.py` 复用同一判断。
+- **少错**：修复 v2.9 补推失败的根因（此前两次补推、合计 6 次重试全 502）；
+  改后 `sync_now.py --end` 一次推送成功，云端 v2.9 回读一致（`cfb66d8`）。
+  直连稳定性实测 3/3、代理同刻 1/2；回落机制让「哪条通走哪条」不再依赖运气。
+- **速度**：直连 ~0.5s vs 代理失败时 21s 超时；成功后单次同步从「反复重试」降到一次。
+- **成本**：纯本地脚本改动，无流水线开销。
+
+**改动文件**
+
+- `scripts/detect_env.py`：新增 `probe_network()`（`DEFAULT_BYPASS_HOSTS` 四个 host），
+  写入 `network` 段并在人读输出里打印「直连 … / 代理 … → 采用 …」。
+- `scripts/sync_now.py`：`route_args()` / `route_candidates()` / `route_desc()`；
+  `git()` 支持显式 `route`；`git_retry()` 改为「首选路由 2 次 → 另一条路由 2 次」；
+  `--route auto|direct|proxy`；`--status` 多打印「网络路由」一行；诊断文案改为双路视角。
+- `scripts/connect_github.py`：`_opener()` 在直连可用时对 `api.github.com` 绕过代理。
+- `templates/local_config.template.json`：补 `network` 段与字段说明（人工可填 `force`）。
+- `SKILL.md` 规则 61；`WORKBUDDY-ADAPTER.md` 第 8 节新增「网络路由」小节 + 版本坐标。
+
+**学到的东西**
+
+1. **「网页能开」不等于「git 能连」**：git over HTTPS 依赖 `github.com:443` 的 CONNECT 隧道，
+   代理可以对 API 正常、对 443 隧道稳定失败；判断必须分别实测，不能看浏览器。
+2. **静态选路不可靠**：本机直连也会周期性全断（21s 超时），所以「探测结果」只能决定**顺序**，
+   真正的可用性必须靠**运行时双路回落**。这也是本轮从 v2.9 的写法改回来的原因。
+3. 白名单要落在**配置层**（`local_config.json`，不入库），而非写死进脚本或 `.git/config`：
+   别人的网络未必有代理，本机换网也不该改代码。
+
 ## v2.9 — 2026-11-14 · 公开主库第一次常规迭代（旧账户名清理）
 
 **改动**：`scripts/public_sanitize.py` 注释中的 GitHub 账户名 `zengfanfu` 更正为

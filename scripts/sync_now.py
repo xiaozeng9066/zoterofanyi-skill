@@ -25,6 +25,7 @@
   python scripts/sync_now.py --start
   python scripts/sync_now.py --end
   python scripts/sync_now.py --start --dry-run
+  python scripts/sync_now.py --status --route direct   # 只验证某条路（规则 61）
   python scripts/sync_now.py --end --allow-offline --json
 """
 from __future__ import annotations
@@ -41,6 +42,13 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parents[1]
 BRANCH = "main"
 REMOTE = "origin"
+CONFIG = ROOT / "local_config.json"
+
+# v2.10（规则 61）：GitHub 这几个 host 支持「绕过代理直连」。
+# 本机实测代理对 github.com:443 的 CONNECT 约 50% 502，直连 3/3 稳定。
+DEFAULT_BYPASS_HOSTS = (
+    "github.com", "api.github.com", "codeload.github.com", "objects.githubusercontent.com",
+)
 
 
 class SyncError(Exception):
@@ -62,30 +70,91 @@ def net_hint(text: str) -> str:
         return ""
     proxy = os.environ.get("HTTPS_PROXY") or os.environ.get("https_proxy")
     return (
-        "\n[诊断] 疑似网络代理故障：git over HTTPS 需要 github.com:443 的 CONNECT 隧道，"
+        "\n[诊断] 两条路都不通（直连 github.com:443 与代理 CONNECT 隧道均失败）。"
         + (f"当前 HTTPS_PROXY={proxy}。" if proxy else "当前未设置 HTTPS_PROXY。")
         + "\n        稍后重跑 --start / --end 即可补同步；不要手动改 .git/config、不要强推。"
-        + "\n        若长期不通，检查本机代理服务或换网络，再跑 sync_now.py --status 复核。"
+        + "\n        可试：sync_now.py --status --route direct / --route proxy 单独验证某条路；"
+        + "\n        若代理会误伤 GitHub，见 SKILL.md 规则 61（GitHub 白名单直连）。"
     )
 
 
-def git_retry(*args: str, attempts: int = 3, delay: float = 2.0,
+def git_retry(*args: str, attempts: int = 2, delay: float = 1.5,
               **kw) -> subprocess.CompletedProcess:
-    """只对网络类瞬时故障做有限重试；历史分叉 / 权限错误一律立即返回交上层裁决。"""
-    proc = None
-    for i in range(attempts):
-        proc = git(*args, **kw)
-        if proc.returncode == 0 or not NET_ERR_RE.search(out(proc)):
-            return proc
-        if i < attempts - 1:
-            print(f"[WARN] 网络抖动（{i + 1}/{attempts}），{delay:g}s 后重试 git {' '.join(args)}")
-            time.sleep(delay)
-    return proc  # type: ignore[return-value]
+    """网络命令：先试首选路由，不通就自动回落另一条；只对网络类错误重试。
+    历史分叉 / 权限错误立即返回交上层裁决。"""
+    routes = route_candidates()
+    last: subprocess.CompletedProcess | None = None
+    for idx, route in enumerate(routes):
+        for i in range(attempts):
+            proc = git(*args, route=route, **kw)
+            last = proc
+            if proc.returncode == 0 or not NET_ERR_RE.search(out(proc)):
+                _LAST_ROUTE[0] = route
+                if idx > 0:
+                    print(f"[INFO] 首选路径不通，已回落到 {'直连' if route == 'direct' else '代理'} 并成功")
+                return proc
+            if i < attempts - 1:
+                print(f"[WARN] 网络抖动（{'直连' if route == 'direct' else '代理'} "
+                      f"{i + 1}/{attempts}），{delay:g}s 后重试")
+                time.sleep(delay)
+        if idx < len(routes) - 1:
+            print(f"[WARN] {'直连' if route == 'direct' else '代理'}不通，改试另一条路径")
+    return last  # type: ignore[return-value]
 
 
-def git(*args: str, check: bool = True, timeout: int = 90) -> subprocess.CompletedProcess:
+def load_network() -> dict:
+    """读 local_config.json 的 network 段；缺失或损坏时退化为空（走 git 默认）。"""
+    try:
+        cfg = json.loads(CONFIG.read_text(encoding="utf-8"))
+    except (OSError, ValueError):
+        return {}
+    net = cfg.get("network")
+    return net if isinstance(net, dict) else {}
+
+
+_ROUTE_OVERRIDE: list[str | None] = [None]
+_LAST_ROUTE: list[str | None] = [None]   # 记录本次实际成功的路由，供 --status 显示
+
+
+def route_args(route: str = "auto") -> list[str]:
+    """把路由选择变成 git 的 -c 参数，插在子命令之前（显式覆盖 env 与全局配置）。"""
+    if route == "direct":
+        return ["-c", "http.proxy=", "-c", "https.proxy="]
+    if route == "proxy":
+        proxy = ((load_network().get("proxy_env") or {}).get("https_proxy")
+                 or os.environ.get("HTTPS_PROXY") or os.environ.get("https_proxy"))
+        if proxy:
+            return ["-c", f"http.proxy={proxy}", "-c", f"https.proxy={proxy}"]
+    return []
+
+
+def route_candidates() -> list[str]:
+    """首选路由 + 备用路由。探测只决定顺序，真正可用性以本次连接为准（规则 61）。"""
+    net = load_network()
+    primary = _ROUTE_OVERRIDE[0] or net.get("force") or net.get("chosen") or "auto"
+    has_proxy = bool((net.get("proxy_env") or {}).get("https_proxy")
+                     or os.environ.get("HTTPS_PROXY") or os.environ.get("https_proxy"))
+    routes = ["proxy", "direct"] if (primary == "proxy" and has_proxy) else ["direct", "proxy"]
+    return routes if has_proxy else ["direct"]
+
+
+def route_desc() -> str:
+    used = _LAST_ROUTE[0]
+    if used:
+        return ("GitHub 直连（绕过代理）" if used == "direct"
+                else f"走代理 {(load_network().get('proxy_env') or {}).get('https_proxy') or 'HTTPS_PROXY'}"
+                + ("（已自动回落）" if used != route_candidates()[0] else ""))
+    net = load_network()
+    primary = _ROUTE_OVERRIDE[0] or net.get("force") or net.get("chosen") or "auto"
+    if primary == "auto" and not net:
+        return "未探测（无 network 配置，按 git 默认；联网时自动尝试两条路）"
+    return f"首选 {'直连' if primary == 'direct' else ('代理' if primary == 'proxy' else '自动')}，失败自动回落另一条"
+
+
+def git(*args: str, check: bool = True, timeout: int = 90,
+        route: str = "auto") -> subprocess.CompletedProcess:
     proc = subprocess.run(
-        ["git", "-C", str(ROOT), *args],
+        ["git", "-C", str(ROOT), *route_args(route), *args],
         capture_output=True, text=True, encoding="utf-8", errors="replace", timeout=timeout,
     )
     if check and proc.returncode != 0:
@@ -212,6 +281,7 @@ def print_report(info: dict, dry_run: bool) -> None:
     print("=== zoterofanyi 同步状态 ===")
     print(f"版本 tag：{info['tag']}    本地 HEAD：{info['head']}    分支：{info['branch']}")
     print(f"同步源：{info['origin']}")
+    print(f"网络路由：{route_desc()}")
     if "remote_head" in info:
         print(f"远端 HEAD：{info['remote_head']}")
     print(f"状态：{label}（落后 {info['behind']} / 领先 {info['ahead']}）")
@@ -327,7 +397,11 @@ def main() -> int:
     ap.add_argument("--dry-run", action="store_true", help="打印将执行的动作，不联网、不写仓库")
     ap.add_argument("--allow-offline", action="store_true", help="--end 在无 origin / 离线时降级为 WARN（供收尾脚本用）")
     ap.add_argument("--json", action="store_true", help="以 JSON 输出状态（供脚本消费）")
+    ap.add_argument("--route", choices=["auto", "direct", "proxy"],
+                    help="临时指定网络路由（默认按 local_config.json 的 network 段；规则 61）")
     args = ap.parse_args()
+    if args.route:
+        _ROUTE_OVERRIDE[0] = args.route
     try:
         if args.status:
             if args.json:

@@ -187,10 +187,11 @@ MIDDLE=$(find "$W/work/mineru" -name "*_middle.json" | head -1)
 
 | 项 | 值 |
 |---|---|
-| 版本 / tag | **v2.8**（公开主库提交护栏 + 迁移；上一版 v2.7，基线 tag `v2.2`）；下一版从 **v2.9** 起 |
-| git 仓库 | `~/.workbuddy/skills/zoterofanyi/` 本身（独立仓库，分支 `main`）；基线 `baseline(v2.2)` = `db0a9c4`。**origin = `https://github.com/xiaozeng9066/zoterofanyi-skill.git`（private）**，v2.5 首次推送 100 文件 + 4 个 tag，回读校验通过 |
-| 云端同步 | `sync_now.py --start / --end / --status`；开工拉、收尾 `iterate_commit.py` 自动推并回读远端 HEAD。GitHub 连接器为 App，建仓 403 / 新私有仓 404，**不影响 git 同步**（规则 58） |
-| 工程规则编号 | 1–60，下一条 **61**（v2.8 新增「公开主库须有每次提交的隐私门禁」） |
+| 版本 / tag | **v2.10**（GitHub 双路网络策略；上一版 v2.9）；下一版从 **v2.11** 起。公开主库历史从 v2.8 干净初始提交起算，v2.2–v2.7 在私有归档库 |
+| git 仓库 | `~/.workbuddy/skills/zoterofanyi/` 本身（独立仓库，分支 `main`）。**origin = `https://github.com/xiaozeng9066/zoterofanyi-skill.git`（public，公开主库）**；私有归档 `.../zoterofanyi-skill-archive`（含 v2.2–v2.8 完整历史），本地目录 `~/.workbuddy/zoterofanyi-archive` |
+| 云端同步 | `sync_now.py --start / --end / --status`；开工拉、收尾 `iterate_commit.py` 自动推并回读远端 HEAD。GitHub 连接器为 App，建仓 403 / 新仓库 404，**不影响 git 同步**（规则 58） |
+| 网络路由 | `local_config.json` 的 `network` 段（`detect_env.py` 探测）：GitHub 可直连则绕过代理，首选失败**自动回落**另一条；`--route direct/proxy` 可锁定验证（规则 61） |
+| 工程规则编号 | 1–61，下一条 **62**（v2.10 新增「GitHub 直连优先 + 自动回落」） |
 | 黄金测试集 | 14 案例，**14/14 PASS**（真源本机实测）；脱敏副本亦 **14/14 PASS + 残留 0 处**（`public_sanitize.py --verify`） |
 | 公开版 | `scripts/public_sanitize.py` 生成 `dist/public`（已 gitignore）；发布指南 `PUBLIC-RELEASE.md`、第 9 节。**私有主库仍是唯一真源，全强度 fixtures 不降级** |
 | 翻译记忆 | 76 条词级纠正 + 9 条整句模式（含 3EHBMRQR / E2HE73V2 / RB7BRXRA 等篇审校纠正） |
@@ -386,6 +387,26 @@ python scripts/iterate_commit.py -v <版本> -m "<说明>"   # 收尾：commit +
 「云端永远最新」的准确边界：**每次成功收尾之后**云端与本地一致；离线期间的本地改动
 会在恢复网络后由 `--end` 补推（`--start` 也会提示「本地有 N 个未推送提交」）。
 脚本不会后台常驻，也不会在两台机器同时写时替你猜谁对——分叉一律交人工裁决。
+
+### 网络路由：GitHub 白名单直连（v2.10，规则 61）
+
+本机代理 `127.0.0.1:14126` 对 `api.github.com` 时通时断、对 `github.com:443` 的 CONNECT
+约半数 502，而直连常常 3/3 稳定 —— 表现为「网页能开、git 报离线」。
+
+```bash
+python scripts/detect_env.py                 # 探测直连/代理两条路，写入 local_config.json 的 network 段
+python scripts/sync_now.py --status          # 显示实际路由（直连 / 代理 / 已自动回落）
+python scripts/sync_now.py --status --route direct   # 只验证直连
+python scripts/sync_now.py --status --route proxy    # 只验证代理
+```
+
+- 排序依据：`network.chosen`；**首选失败自动回落另一条**，不需要人盯着重跑。
+- 白名单 host：`github.com`、`api.github.com`、`codeload.github.com`、
+  `objects.githubusercontent.com`；其余流量照旧走代理。
+- 想固定路线：在 `local_config.json` 里设 `network.force = "direct"`（或 `"proxy"`）。
+- 也可以在 git 全局按域放行（只影响 git，不改系统代理）：
+  `git config --global http.https://github.com.proxy ""`（其余 host 同法）。
+- 不要全局关闭代理、不要在 `.git/config` 里写死代理；同步成败仍以回读远端 HEAD 为准。
 
 ### 隐私审计（2026-11-14 对 100 个入库文件全量扫描）
 

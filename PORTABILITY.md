@@ -153,7 +153,13 @@ skill 与 git 仓库都在 **`~/.workbuddy/skills/zoterofanyi/`** —— WorkBud
 ## 版本坐标
 
 v2.4 提供跨机骨架，**v2.5** 接入 GitHub 云端同步与全局安装（规则 57），
-**v2.6** 真正接通私有仓库并记下连接器权限边界（规则 58），
+**v2.6** 真正接通仓库并记下连接器权限边界（规则 58），
 **v2.7** 提供公开库的数据最小化与发布 SOP（规则 59），
-**v2.8** 迁移到公开主库并加每次提交的隐私门禁（规则 60）；下一版从 **v2.9** 起。
+**v2.8** 迁移到公开主库并加每次提交的隐私门禁（规则 60），
+**v2.10** 加入 GitHub 直连优先 + 自动回落的网络策略（规则 61）；下一版从 **v2.11** 起。
 详见 `CHANGELOG.md`、`PUBLIC-RELEASE.md` 与 `WORKBUDDY-ADAPTER.md` 第 7 / 8 / 9 节。
+
+> **换机时的网络注意（规则 61）**：新机跑 `detect_env.py` 会把「直连 / 代理哪条通」
+> 写进 `local_config.json` 的 `network` 段，`sync_now.py` 首选失败会自动回落另一条。
+> 若新机有代理但 GitHub 常失败，把该 host 加入 `NO_PROXY` 或设 `network.force`，
+> **不要**全局关代理，也不要写死进 `.git/config`。

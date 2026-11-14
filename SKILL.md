@@ -565,6 +565,23 @@ Dimitrov 2026（19 页 / 11 图 3 表；翻译 11 块 + 审校 12 块；共 353 
     - 禁止删除 `PUBLIC-MODE.json` 或改 `mode` 绕过门禁；新案例须先合成化再进 `fixtures/`。
       这条护栏随 clone 自动生效，不依赖本机配置或人的记性。
 
+61. **GitHub 必须走「可以直连就直连」的双路策略，不能盲信系统代理**（v2.10 实测）：
+    - 现象：本机 `HTTPS_PROXY=127.0.0.1:14126`、`NO_PROXY` 只有 `127.0.0.1,localhost,::1`，
+      于是 `github.com` 被塞进代理；该代理对 `api.github.com` 时通时断，
+      对 `github.com:443` 的 **CONNECT 隧道约半数返回 502**，
+      而**直连有时 3/3 稳定（~0.5s）**。表现为「push/fetch 报离线、但网页能开」。
+    - 落地：`detect_env.py` 探测两条路并写 `local_config.json` 的 `network` 段
+      （`github_direct_ok` / `github_proxy_ok` / `chosen` / `bypass_hosts`）；
+      `sync_now.py` 按 `chosen` 排序，**首选失败自动回落另一条**
+      （`-c http.proxy=` 走直连 / `-c http.proxy=<url>` 走代理），
+      `--route direct|proxy` 可临时锁定单条路做验证；
+      `connect_github.py` 读同一段配置，直连可用时对 `api.github.com` 绕过代理。
+    - 白名单 host：`github.com`、`api.github.com`、`codeload.github.com`、
+      `objects.githubusercontent.com`；**其余流量照旧走代理**，不要全局关代理。
+    - 排查顺序：① `sync_now.py --status --route direct` / `--route proxy` 分别试；
+      ② 都不通再查代理进程 / 换网络；③ 网络恢复后 `--end` 补推，**不要重新提交**。
+      禁止改 `.git/config` 写死代理、禁止强推、禁止把「命令 exit 0」当成云端已更新。
+
 ## 成本控制（Dimitrov 2026 实测：会话口径 ¥2.44/篇，19 页）
 
 | 项 | 金额 | 占比 |
