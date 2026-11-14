@@ -565,22 +565,31 @@ Dimitrov 2026（19 页 / 11 图 3 表；翻译 11 块 + 审校 12 块；共 353 
     - 禁止删除 `PUBLIC-MODE.json` 或改 `mode` 绕过门禁；新案例须先合成化再进 `fixtures/`。
       这条护栏随 clone 自动生效，不依赖本机配置或人的记性。
 
-61. **GitHub 必须走「可以直连就直连」的双路策略，不能盲信系统代理**（v2.10 实测）：
-    - 现象：本机 `HTTPS_PROXY=127.0.0.1:14126`、`NO_PROXY` 只有 `127.0.0.1,localhost,::1`，
-      于是 `github.com` 被塞进代理；该代理对 `api.github.com` 时通时断，
-      对 `github.com:443` 的 **CONNECT 隧道约半数返回 502**，
-      而**直连有时 3/3 稳定（~0.5s）**。表现为「push/fetch 报离线、但网页能开」。
-    - 落地：`detect_env.py` 探测两条路并写 `local_config.json` 的 `network` 段
-      （`github_direct_ok` / `github_proxy_ok` / `chosen` / `bypass_hosts`）；
-      `sync_now.py` 按 `chosen` 排序，**首选失败自动回落另一条**
-      （`-c http.proxy=` 走直连 / `-c http.proxy=<url>` 走代理），
-      `--route direct|proxy` 可临时锁定单条路做验证；
-      `connect_github.py` 读同一段配置，直连可用时对 `api.github.com` 绕过代理。
-    - 白名单 host：`github.com`、`api.github.com`、`codeload.github.com`、
-      `objects.githubusercontent.com`；**其余流量照旧走代理**，不要全局关代理。
-    - 排查顺序：① `sync_now.py --status --route direct` / `--route proxy` 分别试；
-      ② 都不通再查代理进程 / 换网络；③ 网络恢复后 `--end` 补推，**不要重新提交**。
-      禁止改 `.git/config` 写死代理、禁止强推、禁止把「命令 exit 0」当成云端已更新。
+61. **代理是前置条件：GitHub 一律走代理，不能靠「直连绕过」**（v2.11 改写，v2.10 判断有误）：
+    - 先把结论记死：**国内环境不可能绕过代理**。v2.10 曾把「直连更稳」写成规则，是误判：
+      同一台机器相隔十几分钟的两次探测结论相反（一次「代理 502 / 直连 3/3 成功」，
+      一次「代理 200 / 直连也 200」）；而且若本机装了系统级 TUN / 透明代理，
+      `-c http.proxy=` 只是名义上绕开代理、实际仍被中转 —— 拿它当选路依据等于自欺。
+    - 落地：`local_config.json` 的 `network` 段为 `mode: proxy-required` + `fallback: warn|block`。
+      `sync_now.py` 固定「代理优先 → 代理内重试 3 次（退避 1.5s / 3s）→ 只有 `fallback=warn`
+      才应急降级直连」；降级时必打印 `[WARN]`、`--status` 标「应急降级」、`--json` 记 degraded，
+      **绝不静默把直连当常规路径**。`--strict-proxy` 让代理不通时直接 BLOCK，不做降级。
+    - 直连只保留两个用途：① 诊断 `--route direct`（判断「是不是代理把 GitHub 打挂了」）；
+      ② 代理彻底不通时的应急兜底。两者都必须显式、可见、不得写成默认。
+    - `bypass_hosts` 恒为空；`connect_github.py` 默认强制 `ProxyHandler`，不再对 `api.github.com` 绕代理。
+      禁止改 `NO_PROXY` 把 GitHub 排除在代理之外，禁止 `.git/config` 写死代理，禁止强推。
+    - 排查顺序：① `--status --route proxy` 看代理本身（502 多为瞬时，重试通常能过）；
+      ② 仍不通查代理进程 / 端口 / 换节点；③ 只有怀疑代理限制 GitHub 时才 `--route direct` 对照；
+      ④ 恢复后 `--end` 补推，**不要重新提交**。
+
+62. **用户明确陈述的环境事实，优先于本机单次探测数据**（v2.11）：
+    - 起因：v2.10 用「`git ls-remote` 直连 3/3 成功」推翻用户「我设过不让走代理？」的直觉，
+      再被用户一句「不可能绕过代理走的，国内环境不允许」全盘纠正。
+    - 规矩：涉及网络可达性、代理、白名单、账号权限这类**环境事实**，本机探测只能作为**佐证**，
+      不能作为推翻用户陈述的依据；探测结果自相矛盾（同一 host 两次结论相反）时，
+      本身就该按「不可靠」处理，而不是挑对自己有利的那次写进规则。
+    - 写规则前先自问：这条结论如果错了，会不会让后续每篇论文都踩同一个坑？
+      会 → 写成「默认严格 + 显式降级」，不要写成「按探测结果择优」。
 
 ## 成本控制（Dimitrov 2026 实测：会话口径 ¥2.44/篇，19 页）
 

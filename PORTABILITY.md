@@ -156,10 +156,12 @@ v2.4 提供跨机骨架，**v2.5** 接入 GitHub 云端同步与全局安装（�
 **v2.6** 真正接通仓库并记下连接器权限边界（规则 58），
 **v2.7** 提供公开库的数据最小化与发布 SOP（规则 59），
 **v2.8** 迁移到公开主库并加每次提交的隐私门禁（规则 60），
-**v2.10** 加入 GitHub 直连优先 + 自动回落的网络策略（规则 61）；下一版从 **v2.11** 起。
+**v2.10** 加入 GitHub 网络策略（已被 v2.11 修正），**v2.11** 把网络策略改为「代理是前置条件」
+（规则 61 改写 + 规则 62）；下一版从 **v2.12** 起。
 详见 `CHANGELOG.md`、`PUBLIC-RELEASE.md` 与 `WORKBUDDY-ADAPTER.md` 第 7 / 8 / 9 节。
 
-> **换机时的网络注意（规则 61）**：新机跑 `detect_env.py` 会把「直连 / 代理哪条通」
-> 写进 `local_config.json` 的 `network` 段，`sync_now.py` 首选失败会自动回落另一条。
-> 若新机有代理但 GitHub 常失败，把该 host 加入 `NO_PROXY` 或设 `network.force`，
-> **不要**全局关代理，也不要写死进 `.git/config`。
+> **换机时的网络注意（规则 61）**：新机跑 `detect_env.py` 会把 `network.mode=proxy-required`
+> 与代理地址写进 `local_config.json`。**代理是前置条件**：GitHub 一律走代理，
+> 代理内重试 3 次；只有代理彻底不通才应急降级一次并告警（`fallback=block` 可关掉降级）。
+> 不要为了「直连能通」去改 `NO_PROXY`、不要全局关代理、不要写死进 `.git/config`；
+> 若新机本来就不需要代理（境外网络），把 `network.mode` 设为 `"auto"`。

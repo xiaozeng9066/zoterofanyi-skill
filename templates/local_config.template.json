@@ -25,15 +25,19 @@
   },
   "network": {
     "checked_at": null,
+    "mode": "proxy-required",
+    "fallback": "warn",
     "proxy_env": { "https_proxy": null, "no_proxy": null },
-    "github_direct_ok": null,
-    "github_direct_ms": null,
     "github_proxy_ok": null,
     "github_proxy_ms": null,
-    "chosen": "auto",
+    "github_direct_ok": null,
+    "github_direct_ms": null,
+    "github_direct_role": "diagnostic",
+    "chosen": "proxy",
     "bypass_hosts": [],
     "force": null,
-    "_comment": "由 detect_env.py 探测写入（规则 61）：GitHub 可直连则绕过代理，sync_now.py 先走 chosen、失败自动回落另一条；force 可手工设为 direct/proxy 固定路线。"
+    "notes": [],
+    "_comment": "由 detect_env.py 探测写入（规则 61）：国内环境代理是前置条件，mode=proxy-required 时代理内重试 3 次、绝不常态化绕代理；fallback=warn 允许代理彻底不通时应急降级并告警，block 则直接阻断。github_direct_* 仅诊断。force 可手工设 proxy/direct（direct 只用于诊断）。"
   },
   "overrides": {},
   "warnings": []

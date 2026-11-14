@@ -25,8 +25,10 @@
   python scripts/sync_now.py --start
   python scripts/sync_now.py --end
   python scripts/sync_now.py --start --dry-run
-  python scripts/sync_now.py --status --route direct   # 只验证某条路（规则 61）
+  python scripts/sync_now.py --status --route proxy    # 只验证代理这条主路径（规则 61）
+  python scripts/sync_now.py --status --route direct   # 诊断用：看「不经代理」到底通不通
   python scripts/sync_now.py --end --allow-offline --json
+  python scripts/sync_now.py --end --strict-proxy      # 代理不通就直接 BLOCK，不许降级
 """
 from __future__ import annotations
 
@@ -44,11 +46,18 @@ BRANCH = "main"
 REMOTE = "origin"
 CONFIG = ROOT / "local_config.json"
 
-# v2.10（规则 61）：GitHub 这几个 host 支持「绕过代理直连」。
-# 本机实测代理对 github.com:443 的 CONNECT 约 50% 502，直连 3/3 稳定。
-DEFAULT_BYPASS_HOSTS = (
-    "github.com", "api.github.com", "codeload.github.com", "objects.githubusercontent.com",
-)
+# v2.11（规则 61 改写，用户 2026-11-14 明确纠正）：
+# 「国内环境不可能绕过代理」——GitHub 直连可用只是偶发现象，不能当常规路径。
+# 同一台机器相隔十几分钟的两次探测就自相矛盾（一次「代理 502 / 直连 3/3」，
+# 一次「代理 200 / 直连 200」），而且本机存在系统级 TUN/透明代理时，
+# 「直连」名义上绕过代理、实际仍被中转，结论根本不可当依据。
+# 所以：代理是**前置条件**，先代理、代理内重试；直连只留两用——
+# ① 诊断（--route direct 看代理挂了没有）；② 代理彻底不通时临时兜底，
+# 且必须大声告警、写进报告、标成 degraded，绝不能静默当默认。
+DEFAULT_MODE = "proxy-required"     # 可选 auto（旧行为：谁先通走谁），仅非受限网络使用
+DEFAULT_FALLBACK = "warn"           # 代理彻底不通时：warn=降级直连并告警 / block=直接阻断
+PROXY_ATTEMPTS = 3                  # 代理内重试次数（502 多为瞬时）
+PROXY_BACKOFF = (1.5, 3.0)          # 第 2、3 次重试前的等待秒数
 
 
 class SyncError(Exception):
@@ -68,37 +77,50 @@ NET_ERR_RE = re.compile(
 def net_hint(text: str) -> str:
     if not NET_ERR_RE.search(text or ""):
         return ""
-    proxy = os.environ.get("HTTPS_PROXY") or os.environ.get("https_proxy")
+    pol = net_policy()
     return (
-        "\n[诊断] 两条路都不通（直连 github.com:443 与代理 CONNECT 隧道均失败）。"
-        + (f"当前 HTTPS_PROXY={proxy}。" if proxy else "当前未设置 HTTPS_PROXY。")
-        + "\n        稍后重跑 --start / --end 即可补同步；不要手动改 .git/config、不要强推。"
-        + "\n        可试：sync_now.py --status --route direct / --route proxy 单独验证某条路；"
-        + "\n        若代理会误伤 GitHub，见 SKILL.md 规则 61（GitHub 白名单直连）。"
+        "\n[诊断] 代理路径失败。代理是本环境唯一标准路径，直连不是备选方案。"
+        + (f"当前 HTTPS_PROXY={pol['proxy']}。" if pol["proxy"]
+           else "当前未设置 HTTPS_PROXY —— 国内环境几乎必然失败，先配代理再同步。")
+        + "\n        ① 查代理进程与端口：sync_now.py --status --route proxy；"
+        + "\n        ② 只有要确认「是不是代理把 GitHub 打挂了」才跑 --route direct（诊断用，不作常态）；"
+        + "\n        ③ 网络恢复后重跑 --start / --end 补同步：不要重新提交、不要改 .git/config、不要强推。"
     )
 
 
-def git_retry(*args: str, attempts: int = 2, delay: float = 1.5,
+def _short_err(proc: subprocess.CompletedProcess) -> str:
+    lines = [ln.strip() for ln in out(proc).splitlines() if ln.strip()]
+    return (lines[-1] if lines else f"exit {proc.returncode}")[:110]
+
+
+def git_retry(*args: str, attempts: int | None = None, delay: float | None = None,
               **kw) -> subprocess.CompletedProcess:
-    """网络命令：先试首选路由，不通就自动回落另一条；只对网络类错误重试。
-    历史分叉 / 权限错误立即返回交上层裁决。"""
-    routes = route_candidates()
+    """网络命令：按 route_plan() 走 —— 代理内重试 → （可选）应急降级不经代理。
+
+    只对网络类错误重试；分叉 / 权限错误立即返回交上层裁决。
+    应急降级一定会打印 [WARN] 并把本次标记为 degraded，不许静默当成正常路径。
+    """
     last: subprocess.CompletedProcess | None = None
-    for idx, route in enumerate(routes):
-        for i in range(attempts):
+    for idx, (route, tries, waits) in enumerate(route_plan()):
+        if route == "direct" and idx > 0:
+            print("[WARN] 代理重试均失败，本次临时改走「不经代理」路径："
+                  "国内环境不可依赖，属应急降级；请尽快修好代理。")
+            _DEGRADED[0] = True
+        if attempts:
+            tries = max(tries, attempts) if route == "proxy" else attempts
+        for i in range(tries):
             proc = git(*args, route=route, **kw)
             last = proc
             if proc.returncode == 0 or not NET_ERR_RE.search(out(proc)):
                 _LAST_ROUTE[0] = route
-                if idx > 0:
-                    print(f"[INFO] 首选路径不通，已回落到 {'直连' if route == 'direct' else '代理'} 并成功")
                 return proc
-            if i < attempts - 1:
-                print(f"[WARN] 网络抖动（{'直连' if route == 'direct' else '代理'} "
-                      f"{i + 1}/{attempts}），{delay:g}s 后重试")
-                time.sleep(delay)
-        if idx < len(routes) - 1:
-            print(f"[WARN] {'直连' if route == 'direct' else '代理'}不通，改试另一条路径")
+            if i < tries - 1:
+                wait = (waits[i] if i < len(waits) else (waits[-1] if waits else 1.5))
+                if delay:
+                    wait = delay
+                print(f"[WARN] {'代理' if route == 'proxy' else '直连'} "
+                      f"第 {i + 1}/{tries} 次失败（{_short_err(proc)}），{wait:g}s 后重试")
+                time.sleep(wait)
     return last  # type: ignore[return-value]
 
 
@@ -114,6 +136,21 @@ def load_network() -> dict:
 
 _ROUTE_OVERRIDE: list[str | None] = [None]
 _LAST_ROUTE: list[str | None] = [None]   # 记录本次实际成功的路由，供 --status 显示
+_DEGRADED: list[bool] = [False]          # 本次是否发生过「绕过代理」的应急降级（规则 61）
+_FORCED_FALLBACK: list[str | None] = [None]   # --strict-proxy 的运行时覆盖
+
+
+def net_policy() -> dict:
+    """本机网络政策：mode / fallback / proxy / force（全部来自 local_config.json）。"""
+    net = load_network()
+    mode = net.get("mode") if net.get("mode") in ("proxy-required", "auto") else DEFAULT_MODE
+    fallback = (net.get("fallback") if net.get("fallback") in ("warn", "block") else DEFAULT_FALLBACK)
+    if _FORCED_FALLBACK[0]:
+        fallback = _FORCED_FALLBACK[0]
+    proxy = ((net.get("proxy_env") or {}).get("https_proxy")
+             or os.environ.get("HTTPS_PROXY") or os.environ.get("https_proxy"))
+    force = net.get("force") if net.get("force") in ("direct", "proxy") else None
+    return {"mode": mode, "fallback": fallback, "proxy": proxy, "force": force}
 
 
 def route_args(route: str = "auto") -> list[str]:
@@ -121,34 +158,59 @@ def route_args(route: str = "auto") -> list[str]:
     if route == "direct":
         return ["-c", "http.proxy=", "-c", "https.proxy="]
     if route == "proxy":
-        proxy = ((load_network().get("proxy_env") or {}).get("https_proxy")
-                 or os.environ.get("HTTPS_PROXY") or os.environ.get("https_proxy"))
+        proxy = net_policy()["proxy"]
         if proxy:
             return ["-c", f"http.proxy={proxy}", "-c", f"https.proxy={proxy}"]
     return []
 
 
+def route_plan() -> list[tuple[str, int, tuple]]:
+    """执行计划：[(路由, 尝试次数, 退避秒数)]。
+
+    默认（proxy-required）：代理重试 3 次 → 仍不通且 fallback=warn 才应急降级一次；
+    fallback=block、或 --strict-proxy 时**没有**第二段，代理不通即失败（规则 61）。
+    auto 模式才恢复 v2.10 的「谁探测通走谁」旧行为。
+    """
+    pol = net_policy()
+    proxy = bool(pol["proxy"])
+    override = _ROUTE_OVERRIDE[0]
+    forced = override or pol["force"]
+    if forced in ("proxy", "direct"):
+        if forced == "proxy" and proxy:
+            return [("proxy", PROXY_ATTEMPTS, PROXY_BACKOFF)]
+        if forced == "direct":
+            return [("direct", 1, ())]
+        return [("proxy", PROXY_ATTEMPTS, PROXY_BACKOFF)] if proxy else [("direct", 1, ())]
+    if pol["mode"] == "auto":
+        chosen = load_network().get("chosen")
+        first = "proxy" if (proxy and chosen != "direct") else ("direct" if not proxy or chosen == "direct" else "proxy")
+    else:
+        first = "proxy" if proxy else "direct"
+    plan: list[tuple[str, int, tuple]] = [
+        (first, PROXY_ATTEMPTS if first == "proxy" else 1,
+         PROXY_BACKOFF if first == "proxy" else ()) ]
+    if first == "proxy" and pol["fallback"] != "block":
+        plan.append(("direct", 1, ()))
+    return plan
+
+
 def route_candidates() -> list[str]:
-    """首选路由 + 备用路由。探测只决定顺序，真正可用性以本次连接为准（规则 61）。"""
-    net = load_network()
-    primary = _ROUTE_OVERRIDE[0] or net.get("force") or net.get("chosen") or "auto"
-    has_proxy = bool((net.get("proxy_env") or {}).get("https_proxy")
-                     or os.environ.get("HTTPS_PROXY") or os.environ.get("https_proxy"))
-    routes = ["proxy", "direct"] if (primary == "proxy" and has_proxy) else ["direct", "proxy"]
-    return routes if has_proxy else ["direct"]
+    """兼容旧调用：只要路由顺序。"""
+    return [route for route, _, _ in route_plan()]
 
 
 def route_desc() -> str:
+    pol = net_policy()
     used = _LAST_ROUTE[0]
-    if used:
-        return ("GitHub 直连（绕过代理）" if used == "direct"
-                else f"走代理 {(load_network().get('proxy_env') or {}).get('https_proxy') or 'HTTPS_PROXY'}"
-                + ("（已自动回落）" if used != route_candidates()[0] else ""))
-    net = load_network()
-    primary = _ROUTE_OVERRIDE[0] or net.get("force") or net.get("chosen") or "auto"
-    if primary == "auto" and not net:
-        return "未探测（无 network 配置，按 git 默认；联网时自动尝试两条路）"
-    return f"首选 {'直连' if primary == 'direct' else ('代理' if primary == 'proxy' else '自动')}，失败自动回落另一条"
+    if used == "proxy":
+        return f"走代理 {pol['proxy'] or 'HTTPS_PROXY'}（代理内已重试 {PROXY_ATTEMPTS} 次可用）"
+    if used == "direct":
+        if pol["mode"] == "proxy-required":
+            return ("不经代理（⚠ 应急降级：国内环境不可依赖，本次不是正常路径；请修代理）"
+                    + ("［诊断模式］" if _ROUTE_OVERRIDE[0] == "direct" else ""))
+        return "不经代理（auto 模式按探测结果选择）"
+    tail = ("；彻底不通时应急降级并告警" if pol["fallback"] != "block" else "；不通即 BLOCK")
+    return f"代理优先 {pol['proxy'] or '（未设置 HTTPS_PROXY）'}，代理内重试 {PROXY_ATTEMPTS} 次{tail}"
 
 
 def git(*args: str, check: bool = True, timeout: int = 90,
@@ -282,6 +344,9 @@ def print_report(info: dict, dry_run: bool) -> None:
     print(f"版本 tag：{info['tag']}    本地 HEAD：{info['head']}    分支：{info['branch']}")
     print(f"同步源：{info['origin']}")
     print(f"网络路由：{route_desc()}")
+    if _DEGRADED[0]:
+        print("[WARN] 本次同步走了「不经代理」的应急路径：功能上成功，但它不是本环境的正常路径，"
+              "请检查代理进程 / 端口后重跑一次确认。")
     if "remote_head" in info:
         print(f"远端 HEAD：{info['remote_head']}")
     print(f"状态：{label}（落后 {info['behind']} / 领先 {info['ahead']}）")
@@ -384,8 +449,41 @@ def cmd_end(dry_run: bool = False, allow_offline: bool = False) -> int:
         raise SyncError(f"push 后远端 HEAD({sha[:12]}) != 本地 HEAD({local[:12]})，请人工复核，不要强推。")
     else:
         print(f"云端已更新并与本地一致：{info['tag']} · {local[:12]}")
+    if _DEGRADED[0]:
+        print("[WARN] 本次推送未经代理（应急降级），内容是对的但路径不合规："
+              "请确认代理恢复后重跑 `sync_now.py --status --route proxy` 复核。")
     print("其他电脑开工前：python scripts/sync_now.py --start")
     return 0
+
+
+def warn_stale_bypass() -> None:
+    """检测「GitHub 不走代理」的全局 git 残留项（v2.10 曾写入 ~/.gitconfig）。
+
+    这类 `http.https://github.com.proxy = ""` 会**静默覆盖** `-c http.proxy=`，
+    让 --route proxy 名义走代理、实际直连 —— v2.11 排查时正是被它骗过一次。
+    只告警、不自动改用户全局配置（规则 61：禁止擅自改全局代理设置）。
+    """
+    try:
+        proc = subprocess.run(
+            ["git", "config", "--global", "--get-regexp", r"^http\.https://.*\.proxy$"],
+            capture_output=True, text=True, encoding="utf-8", errors="replace", timeout=20,
+        )
+    except (OSError, subprocess.TimeoutExpired):
+        return
+    if proc.returncode != 0 or not proc.stdout.strip():
+        return
+    empties = []
+    for line in proc.stdout.splitlines():
+        parts = line.split(None, 1)
+        if len(parts) == 1 or not parts[1].strip():
+            empties.append(parts[0])
+    if not empties:
+        return
+    print("[WARN] 全局 git 配置里有「GitHub 不走代理」的残留项（会静默覆盖本项目选路）：")
+    for key in empties:
+        print(f"        {key}  = (空)")
+    print("        清理：git config --global --unset-all '<对应 key>'；"
+          "随后用 --status --route proxy 复核（规则 61）。")
 
 
 def main() -> int:
@@ -398,10 +496,20 @@ def main() -> int:
     ap.add_argument("--allow-offline", action="store_true", help="--end 在无 origin / 离线时降级为 WARN（供收尾脚本用）")
     ap.add_argument("--json", action="store_true", help="以 JSON 输出状态（供脚本消费）")
     ap.add_argument("--route", choices=["auto", "direct", "proxy"],
-                    help="临时指定网络路由（默认按 local_config.json 的 network 段；规则 61）")
+                    help="临时指定网络路由（默认代理优先；direct 仅作诊断，规则 61）")
+    ap.add_argument("--strict-proxy", action="store_true",
+                    help="本次严格要求走代理：代理不通直接 BLOCK，不做应急降级")
     args = ap.parse_args()
     if args.route:
         _ROUTE_OVERRIDE[0] = args.route
+        if args.route == "direct":
+            print("[WARN] --route direct 是诊断路径：它绕开代理，国内环境不可依赖；"
+                  "成功后请务必再跑一次 --route proxy 确认代理本身是好的。")
+    if args.strict_proxy:
+        net = load_network()
+        net["fallback"] = "block"
+        _FORCED_FALLBACK[0] = "block"
+    warn_stale_bypass()
     try:
         if args.status:
             if args.json:

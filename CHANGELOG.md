@@ -7,7 +7,52 @@
 > **本库为公开主库（v2.8 起，拓扑 B）**：历史从 v2.8 干净初始提交起算；
 > v2.2–v2.7 的完整迭代史在私有归档库 `xiaozeng9066/zoterofanyi-skill-archive`。
 
-## v2.10 — 2026-11-14 · GitHub 双路网络策略（直连优先 + 自动回落，规则 61）
+## v2.11 — 2026-11-14 · 网络策略纠错：代理是前置条件，禁止靠「直连绕过」（规则 61 改写 + 规则 62）
+
+**背景**：用户一句话推翻 v2.10 ——「不可能绕过代理走的，国内环境不允许」。复盘发现 v2.10 的
+「直连 3/3 成功」**是假象**：当时为做白名单，把
+`http.https://github.com.proxy = ""` 等 4 条写进了**用户全局** `~/.gitconfig`，
+它们会静默覆盖后续所有 `-c http.proxy=` —— 于是「测直连」测的是被改过的全局配置，
+「测代理」也被同一条覆盖掉，两条路的结果都不可信。v2.11 实测（清掉这 4 条后）：
+git 指定死代理 `127.0.0.1:9` 立刻 `Failed to connect ... over proxy`；
+而「不经代理」依然 200 → 本机网络层有 TUN/透明代理接管，**所谓直连根本不存在**。
+
+**指标实测**
+
+- **准确**：协议改为 `network.mode = proxy-required` + `fallback = warn|block`；
+  `sync_now.py` 固定「代理优先 → 代理内重试 3 次（退避 1.5s / 3s）→ 只有 fallback=warn
+  才应急降级」。降级一定打印 `[WARN]`、`--status` 标「应急降级」、`--json` 记 degraded。
+- **少错**：新增 `--strict-proxy`（代理不通直接 BLOCK）与 `warn_stale_bypass()`——
+  自动检测「全局 git 里有 GitHub 空代理残留」并给出清理命令（只告警，不擅自改用户全局配置）。
+  实测：死代理 + `--strict-proxy` → 3 次重试后不降级、`远端读取：失败`；
+  死代理 + 默认 → 降级且 `[WARN]` 明确写「本次不是正常路径」。
+- **速度**：正常代理路径 1 次成功（2.0s）；只有真正抖动才付重试成本。
+- **成本**：纯脚本/文档改动，无流水线开销。
+
+**改动文件**
+
+- `scripts/sync_now.py`：`net_policy()` / `route_plan()`（替代 `route_candidates()` 的排序逻辑）、
+  `route_desc()` 重写、`git_retry()` 按「路由 × 尝试次数 × 退避」执行、
+  `warn_stale_bypass()`、`--strict-proxy`、`net_hint()` 与报告文案改代理视角。
+- `scripts/detect_env.py`：`probe_network()` 以代理为主、直连仅 `github_direct_role=diagnostic`；
+  `bypass_hosts` 恒空；新增 `mode` / `fallback` / `notes`，人读输出改为「代理 … → 采用 走代理」。
+- `scripts/connect_github.py`：`_opener()` 默认强制 `ProxyHandler`，不再对 `api.github.com` 绕代理。
+- `SKILL.md` 规则 61 重写 + 新增规则 62；`WORKBUDDY-ADAPTER.md` 第 8 节与规则编号表；
+  `PORTABILITY.md` 版本坐标与换机网络提示；`templates/local_config.template.json` 的 `network` 段。
+- **本机副作用修复**：清除 `~/.gitconfig` 里 v2.10 写入的 4 条 `http.https://*.github*.proxy = ""`
+  （备份在 `/tmp/gitconfig.bak`）；`local_config.json` 由 `detect_env.py` 重写为 `proxy-required`。
+
+**学到的东西**
+
+1. **测试环境被自己污染时，结论必然是错的**：为「验证」写进全局配置的开关，会反过来污染验证本身。
+   做网络/权限类实验必须先确认没有上一层覆盖（`git config --show-origin --get-regexp '^http\.'`）。
+2. **「探测通过」不等于「这条路合规」**：本机不经代理也能通，是因为网络层有 TUN 中转，
+   不是因为 GitHub 直连可用。可用性 ≠ 可依赖性，选路要以环境约束为准，不以单次探测为准。
+3. 用户对环境的陈述是一手事实，我的探测是二手证据：**证据与事实冲突时改证据的解释，不改事实**（规则 62）。
+4. 降级必须**吵闹**：静默降级等于把例外变成默认；`[WARN]` + degraded 标记 + 报告里点名，
+   才能让下一个人（或未来的我）一眼看出「这次不是正常路径」。
+
+## v2.10 — 2026-11-14 · GitHub 双路网络策略（直连优先 + 自动回落，规则 61）⚠ 已被 v2.11 纠正
 
 **背景**：用户问「是不是设置过不让走代理，git/github 是否在白名单外」。查证结果：
 WorkBuddy 的 `sandbox.orderedRules.network` 为空预设（没有自定义拦截），`NO_PROXY` 只有

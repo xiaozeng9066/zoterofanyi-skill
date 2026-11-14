@@ -30,15 +30,14 @@ CONFIG = ROOT / "local_config.json"
 TEMPLATE = ROOT / "templates" / "local_config.template.json"
 VENV_PY = "Scripts/python.exe" if os.name == "nt" else "bin/python"
 
-# v2.10 实测（2026-11-14）：本机 HTTPS_PROXY=127.0.0.1:14126 对 api.github.com 正常，
-# 但对 github.com:443 的 CONNECT 隧道约 50% 返回 502；直连 github.com 反而 3/3 稳定（~0.5s）。
-# 结论：GitHub 这几个 host 应绕过代理（白名单），其余流量照旧走代理。
-DEFAULT_BYPASS_HOSTS = [
-    "github.com",
-    "api.github.com",
-    "codeload.github.com",
-    "objects.githubusercontent.com",
-]
+# v2.11（规则 61 改写，用户 2026-11-14 纠正）：「国内环境不可能绕过代理」。
+# 直连 GitHub 的可用性只是偶发：同一台机器相隔十几分钟的两次探测结论相反
+# （一次「代理 502 / 直连 3/3」，一次「代理 200 / 直连 200」）；若本机还装了
+# 系统级 TUN / 透明代理，「直连」名义上绕开代理、实际仍被中转，结论根本不可当依据。
+# 所以探测只回答两件事：① 代理通不通（决定要不要先修网络）；② 不经代理通不通（纯诊断）。
+# 选路永远是「代理优先」，直连只作诊断与应急降级，绝不写进白名单常态化。
+DEFAULT_MODE = "proxy-required"     # auto 仅用于无代理的境外网络
+DEFAULT_FALLBACK = "warn"           # warn=代理不通时应急降级并告警；block=直接阻断
 PROBE_URL_FALLBACK = "https://github.com/git/git.git"
 
 
@@ -64,39 +63,60 @@ def _ls_remote(url: str, *, direct: bool, proxy: str | None, timeout: int = 15):
 
 
 def probe_network(remote_url: str | None, old: dict) -> dict:
-    """探测 GitHub 直连 / 代理两条路，决定本机该用哪条（规则 61）。"""
+    """探测代理与「不经代理」两条路，产出本机网络政策（规则 61）。
+
+    代理是**前置条件**：只要有 HTTPS_PROXY 就固定以代理为准，探测失败只记 WARN
+    （502 多为瞬时，重试通常能过），不会因为「直连也通」就改走直连。
+    直连结果只作诊断字段 `github_direct_ok` 保存。
+    """
     proxy = _env_proxy()
     url = remote_url or PROBE_URL_FALLBACK
     no_proxy = os.environ.get("NO_PROXY") or os.environ.get("no_proxy") or ""
     prev = old.get("network", {}) if isinstance(old.get("network"), dict) else {}
+    notes: list[str] = []
 
-    direct_ok, direct_ms = _ls_remote(url, direct=True, proxy=proxy)
     proxy_ok, proxy_ms = (None, None)
     if proxy:
         proxy_ok, proxy_ms = _ls_remote(url, direct=False, proxy=proxy)
+    # 诊断：不经代理时通不通（不作为选路依据）
+    direct_ok, direct_ms = _ls_remote(url, direct=True, proxy=proxy)
 
-    if direct_ok:
-        chosen = "direct"
-    elif proxy_ok:
-        chosen = "proxy"
+    mode = prev.get("mode") if prev.get("mode") in ("proxy-required", "auto") else DEFAULT_MODE
+    fallback = prev.get("fallback") if prev.get("fallback") in ("warn", "block") else DEFAULT_FALLBACK
+    force = prev.get("force") if prev.get("force") in ("direct", "proxy", None) else None
+
+    if mode == "proxy-required":
+        chosen = "proxy" if proxy else "direct"
     else:
-        chosen = "auto"   # 两条都测不通：交给 git 默认（可能稍后网络恢复）
-    # 人工可用 network.force 固定路线；auto 表示按探测结果
-    force = prev.get("force") if prev.get("force") in ("direct", "proxy", "auto", None) else None
+        chosen = "proxy" if (proxy and proxy_ok) else ("direct" if direct_ok else "auto")
+
+    if not proxy:
+        notes.append("未探测到 HTTPS_PROXY —— 国内环境几乎必然同步失败；先配代理，再跑 "
+                     "sync_now.py --status --route proxy 验证。")
+    elif not proxy_ok:
+        notes.append("代理本次探测失败（多为瞬时 502）：仍以代理为准，重试通常可通；"
+                     "连续失败再查代理进程/端口。")
+    if direct_ok and proxy:
+        notes.append("诊断：不经代理也能通（%.2fs）。这可能只是系统级 TUN/透明代理在中转，"
+                     "不代表可以长期绕过代理 —— 不要据此改走直连。" % (direct_ms or 0))
     return {
         "checked_at": datetime.now().astimezone().isoformat(timespec="seconds"),
+        "mode": mode,
+        "fallback": fallback,
         "proxy_env": {
             "https_proxy": os.environ.get("HTTPS_PROXY") or os.environ.get("https_proxy"),
             "no_proxy": no_proxy,
         },
-        "github_direct_ok": direct_ok,
-        "github_direct_ms": direct_ms,
         "github_proxy_ok": proxy_ok,
         "github_proxy_ms": proxy_ms,
+        "github_direct_ok": direct_ok,
+        "github_direct_ms": direct_ms,
+        "github_direct_role": "diagnostic",
         "chosen": chosen,
-        # direct 可用就把这几个 host 加进白名单（NO_PROXY + git 按域空代理）
-        "bypass_hosts": DEFAULT_BYPASS_HOSTS if (direct_ok and force != "proxy") else [],
+        # v2.11 起恒为空：不再把 GitHub 排除在代理之外（用户明确：国内不可能绕代理）
+        "bypass_hosts": [] if mode == "proxy-required" else prev.get("bypass_hosts", []),
         "force": force,
+        "notes": notes,
     }
 
 
@@ -218,6 +238,7 @@ def main() -> int:
 
     remote = prev_sync.get("remote_url") or git_remote_url()
     network = probe_network(remote, old)
+    warnings.extend(network.get("notes") or [])
     cfg = {
         "schema_version": 1,
         "generated_at": datetime.now().astimezone().isoformat(timespec="seconds"),
@@ -254,16 +275,16 @@ def main() -> int:
             print(f"  {'OK  ' if cfg.get(key) else 'MISS'} {key:<15} {cfg.get(key) or '(未配置)'}")
         print(f"  fitz: {'yes' if has_fitz else 'NO'}   云同步目录: {', '.join(cloud_dirs) or '无'}")
         print(f"  git remote: {remote or '(未配置)'}")
-        route = {"direct": "直连 GitHub（绕过代理）", "proxy": "走代理",
-                 "auto": "未定（两条路都没测通，按 git 默认）"}[network["chosen"]]
-        dstat = "OK" if network["github_direct_ok"] else "FAIL"
         pstat = ("未设置" if network["github_proxy_ok"] is None
-                 else ("OK" if network["github_proxy_ok"] else "FAIL"))
+                 else ("OK" if network["github_proxy_ok"] else "FAIL（重试后会再试）"))
         pms = "" if network["github_proxy_ms"] is None else f" ({network['github_proxy_ms']}s)"
-        print(f"  网络: 直连 {dstat} ({network['github_direct_ms']}s)"
-              f" / 代理 {pstat}{pms} → 采用 {route}")
+        dstat = "OK" if network["github_direct_ok"] else "FAIL"
+        print(f"  网络: 代理 {pstat}{pms} → 采用 走代理（{network['mode']}，重试 3 次）")
+        print(f"        诊断（不作选路依据）: 不经代理 {dstat} ({network['github_direct_ms']}s)")
         if network["bypass_hosts"]:
             print(f"        白名单: {', '.join(network['bypass_hosts'])}")
+        else:
+            print("        白名单: 无（GitHub 不排除在代理之外；国内环境不能靠绕代理）")
         if warnings:
             print("\n待处理：")
             for w in warnings:

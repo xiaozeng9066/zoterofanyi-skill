@@ -187,11 +187,11 @@ MIDDLE=$(find "$W/work/mineru" -name "*_middle.json" | head -1)
 
 | 项 | 值 |
 |---|---|
-| 版本 / tag | **v2.10**（GitHub 双路网络策略；上一版 v2.9）；下一版从 **v2.11** 起。公开主库历史从 v2.8 干净初始提交起算，v2.2–v2.7 在私有归档库 |
+| 版本 / tag | **v2.11**（网络策略纠错：代理是前置条件；上一版 v2.10 的「直连优先」已作废）；下一版从 **v2.12** 起。公开主库历史从 v2.8 干净初始提交起算，v2.2–v2.7 在私有归档库 |
 | git 仓库 | `~/.workbuddy/skills/zoterofanyi/` 本身（独立仓库，分支 `main`）。**origin = `https://github.com/xiaozeng9066/zoterofanyi-skill.git`（public，公开主库）**；私有归档 `.../zoterofanyi-skill-archive`（含 v2.2–v2.8 完整历史），本地目录 `~/.workbuddy/zoterofanyi-archive` |
 | 云端同步 | `sync_now.py --start / --end / --status`；开工拉、收尾 `iterate_commit.py` 自动推并回读远端 HEAD。GitHub 连接器为 App，建仓 403 / 新仓库 404，**不影响 git 同步**（规则 58） |
-| 网络路由 | `local_config.json` 的 `network` 段（`detect_env.py` 探测）：GitHub 可直连则绕过代理，首选失败**自动回落**另一条；`--route direct/proxy` 可锁定验证（规则 61） |
-| 工程规则编号 | 1–61，下一条 **62**（v2.10 新增「GitHub 直连优先 + 自动回落」） |
+| 网络路由 | `local_config.json` 的 `network` 段：**代理优先**（`mode=proxy-required`，代理内重试 3 次），代理彻底不通才 `fallback=warn` 应急降级并告警；`--route direct` 仅诊断（规则 61） |
+| 工程规则编号 | 1–62，下一条 **63**（v2.11 改写 61「代理是前置条件」，新增 62「用户陈述的环境事实优先于单次探测」） |
 | 黄金测试集 | 14 案例，**14/14 PASS**（真源本机实测）；脱敏副本亦 **14/14 PASS + 残留 0 处**（`public_sanitize.py --verify`） |
 | 公开版 | `scripts/public_sanitize.py` 生成 `dist/public`（已 gitignore）；发布指南 `PUBLIC-RELEASE.md`、第 9 节。**私有主库仍是唯一真源，全强度 fixtures 不降级** |
 | 翻译记忆 | 76 条词级纠正 + 9 条整句模式（含 3EHBMRQR / E2HE73V2 / RB7BRXRA 等篇审校纠正） |
@@ -388,25 +388,29 @@ python scripts/iterate_commit.py -v <版本> -m "<说明>"   # 收尾：commit +
 会在恢复网络后由 `--end` 补推（`--start` 也会提示「本地有 N 个未推送提交」）。
 脚本不会后台常驻，也不会在两台机器同时写时替你猜谁对——分叉一律交人工裁决。
 
-### 网络路由：GitHub 白名单直连（v2.10，规则 61）
+### 网络路由：代理优先，禁止靠「直连绕过」（v2.11 改写 v2.10，规则 61/62）
 
-本机代理 `127.0.0.1:14126` 对 `api.github.com` 时通时断、对 `github.com:443` 的 CONNECT
-约半数 502，而直连常常 3/3 稳定 —— 表现为「网页能开、git 报离线」。
+先记住结论：**国内环境不可能绕过代理**。v2.10 曾写过「GitHub 可直连就绕过代理」，
+依据是当时 `git ls-remote` 直连 3/3 成功、经代理 502；但十几分钟后复测，
+同一台机器变成「代理 200 / 直连也 200」——**结论自相矛盾**，而且本机若有系统级
+TUN / 透明代理，「直连」只是名义上绕开、实际仍被中转。所以策略改成「默认严格走代理」。
 
 ```bash
-python scripts/detect_env.py                 # 探测直连/代理两条路，写入 local_config.json 的 network 段
-python scripts/sync_now.py --status          # 显示实际路由（直连 / 代理 / 已自动回落）
-python scripts/sync_now.py --status --route direct   # 只验证直连
-python scripts/sync_now.py --status --route proxy    # 只验证代理
+python scripts/detect_env.py                        # 探测代理（主）+ 不经代理（仅诊断），写 network 段
+python scripts/sync_now.py --status                 # 显示路由：代理优先 / 重试次数 / 是否应急降级
+python scripts/sync_now.py --status --route proxy   # 验证代理本身（常规排查第一步）
+python scripts/sync_now.py --status --route direct  # 诊断：确认「是不是代理把 GitHub 打挂了」
+python scripts/sync_now.py --end --strict-proxy     # 代理不通就 BLOCK，不许降级
 ```
 
-- 排序依据：`network.chosen`；**首选失败自动回落另一条**，不需要人盯着重跑。
-- 白名单 host：`github.com`、`api.github.com`、`codeload.github.com`、
-  `objects.githubusercontent.com`；其余流量照旧走代理。
-- 想固定路线：在 `local_config.json` 里设 `network.force = "direct"`（或 `"proxy"`）。
-- 也可以在 git 全局按域放行（只影响 git，不改系统代理）：
-  `git config --global http.https://github.com.proxy ""`（其余 host 同法）。
-- 不要全局关闭代理、不要在 `.git/config` 里写死代理；同步成败仍以回读远端 HEAD 为准。
+- `network.mode = "proxy-required"`（默认）：`sync_now.py` 固定代理优先，
+  代理内重试 **3 次**（退避 1.5s / 3s；502 多为瞬时）。
+- `network.fallback = "warn"`（默认）：代理彻底不通时才应急降级一次「不经代理」，
+  并打印 `[WARN]`、`--status` 标「应急降级」、`--json` 记 degraded —— 可见、可追溯，不当常规路径。
+  设 `"block"` 则代理不通直接阻断（`--strict-proxy` 等价）。
+- `bypass_hosts` 恒为空：**不把 GitHub 排除在代理之外**，不改 `NO_PROXY`，
+  不在 `.git/config` 写死代理，不全局关代理。
+- `--route direct` 与 `network.force="direct"` 只用于诊断；用完请再跑一次 `--route proxy` 确认代理本身是好的。
 
 ### 隐私审计（2026-11-14 对 100 个入库文件全量扫描）
 

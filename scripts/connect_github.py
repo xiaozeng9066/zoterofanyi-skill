@@ -45,11 +45,12 @@ class ConnectError(Exception):
 
 
 def _opener():
-    """规则 61：探测到 GitHub 可直连时绕过代理。
+    """规则 61（v2.11 改写）：默认强制走代理，不再「直连更稳就绕开代理」。
 
-    本机实测（2026-11-14）：HTTPS_PROXY 对 api.github.com 时好时坏、对
-    github.com:443 的 CONNECT 隧道约半数 502；直连更稳定。选路结果写在
-    local_config.json 的 network 段（detect_env.py 探测），此处只读不探测。
+    用户 2026-11-14 明确：国内环境不可能绕过代理。所以这里只做两件事：
+    proxy-required（默认）→ 用 local_config.json 里的 HTTPS_PROXY 显式建 handler；
+    auto（仅无代理网络）→ 交给 urllib 默认（读环境变量）。
+    唯一例外：人工把 network.force 设成 direct 时才是真正的「不经代理」，属诊断。
     """
     net = {}
     try:
@@ -57,8 +58,14 @@ def _opener():
                .get("network") or {})
     except (OSError, ValueError):
         net = {}
-    if net.get("github_direct_ok") and net.get("force") != "proxy":
+    proxy = ((net.get("proxy_env") or {}).get("https_proxy")
+             or os.environ.get("HTTPS_PROXY") or os.environ.get("https_proxy"))
+    if net.get("force") == "direct":
+        print("[WARN] network.force=direct：本次 API 请求不经代理（诊断路径，国内不可依赖）。")
         return urllib.request.build_opener(urllib.request.ProxyHandler({}))
+    if proxy:
+        return urllib.request.build_opener(
+            urllib.request.ProxyHandler({"http": proxy, "https": proxy}))
     return urllib.request.build_opener()
 
 
