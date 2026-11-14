@@ -61,6 +61,48 @@ description: 把 Zotero 文献库（或任意本地）的英文 PDF 做成「英
 | 页码锚点 | 每页标「原文 p.X」 |
 | 备注 | 写进**父条目**笔记（Zotero 不允许笔记挂附件下） |
 
+## 一键编排（v2.15 起，首选入口；规则 66）
+
+> **为什么**：下面的流水线原来是一步一个脚本，每步都要停下来看输出再决定下一步。
+> 在对话式 Agent 里这等于每步一次模型往返——一篇论文 40+ 次，既慢又费 token。
+> 真正需要模型判断的只有**翻译**和**审校**；抽取/装配/标记/门禁/合并/索引/排版全是确定性处理，
+> 应该由一个本地进程一口气跑完（几秒，0 token）。
+
+```bash
+S=<skill>/scripts ; PY=<含 PyMuPDF 的 venv python> ; W=<论文工作区>
+
+# 阶段一：源 PDF → Gate 1 通过 → 分块 + 翻译指南（0 token）
+"$PY" "$S/pipeline.py" prepare --work "$W" --pdf "$W/source.pdf" \
+      [--meta "$W/work/glossary_meta.json"] [--layout-fix "$W/work/fix_layout.py"]
+
+#   → 并行派 N 个翻译子代理：读 chunks/chunk_NNN.json + chunks/TRANSLATION_GUIDE.md
+#     写 chunks/trans_NNN.json（{"items":[{"id":..,"zh":..}]}）
+
+# 阶段二：合并 → QA → 规则 → 审校分块 + 必查清单（0 token）
+"$PY" "$S/pipeline.py" check --work "$W"
+
+#   → 并行派 M 个审校子代理：读 review/review_NNN.json + review/CHECK_FINDINGS.md
+#     写 fixes/fix_NNN.json
+
+# 阶段三：应用修订 → 脚注索引 → Gate 2 → 出 PDF → 校验（0 token）
+"$PY" "$S/pipeline.py" finish --work "$W" --out-pdf "$W/xxx_双语.pdf" --label "Author et al., 2026"
+
+# 断点/进度一眼看清
+"$PY" "$S/pipeline.py" status --work "$W"
+```
+
+要点：
+
+- `prepare` 里 Gate 1 **不通过就退出码 2 并打印 BLOCK 明细**，绝不带病进入翻译。
+- `check` 在译文不全时**拒绝合并**（防静默丢段）；`--allow-partial` 才能强行继续。
+- `check` 生成的 `CHECK_FINDINGS.md` 已把 `qa.py` + `rules_check.py` 的 FAIL/WARN 全量归类，
+  审校子代理只读这一个文件即可；它与源报告的条数**交叉校验**（规则 67），不一致会告警。
+- `finish` 的 PDF 有两条路：先 `build_pdf.py`（HTML→Edge/Chromium，版式最好），
+  产物无效则**自动回退** `build_pdf_reportlab.py`（reportlab + 内置 STSong-Light CID 字体，
+  覆盖中文/希腊/重音，无需外部字体）。Edge 在受限沙箱里常以 STATUS_BREAKPOINT 静默失败，
+  回退是常态而非异常。
+- 下面这套分步命令**仍然有效**，用于排障或只重跑某一步；日常不要再逐步手工执行。
+
 ## 流水线（严格按序）
 
 ```powershell
@@ -628,6 +670,39 @@ Dimitrov 2026（19 页 / 11 图 3 表；翻译 11 块 + 审校 12 块；共 353 
       必须同一次迭代里改 README 对应章节，否则下次看到的就是半真半假的文档。
     - 禁止：删状态表标记来绕过门禁、只改数字不改文字、把 README 写成第二份 `SKILL.md`
       （README 只讲「是什么 / 怎么装 / 怎么用 / 去哪查」，细节一律指向 `SKILL.md` 与适配层）。
+
+65. **Zotero 桥接不通先查插件兼容门禁，别猜网络**（v2.15）：
+    - 起因：`cli bridge` 长期返回 404，被当成「Zotero 没连上 / 网络问题」反复试探。
+      真因是 `extensions.json` 里 `dsh-zotero-bridge@local` 的 `active:false, appDisabled:true`——
+      它声明 `strict_max_version: 9.*`，而 Zotero 实际是 **10.x**，被 Zotero 主动禁用，端点从未注册。
+    - 判据：`extensions.json` 里 `appDisabled:true` 或 `maxVersion` 低于当前大版本 = 插件被禁；
+      同机可用的插件（如 Zotero One 写 `10.9.*`）是现成的对照物。
+    - Zotero 自带的 `127.0.0.1:23119` 只开放 `/connector/*`（浏览器抓文献用），**没有写库 API**，
+      不要在这上面继续探测。写库只有两条路：官方数据层（插件）或 Zotero 关闭时直写 sqlite。
+    - 落地：`scripts/zotero_bridge/`（`manifest.json` + `bootstrap.js` + `install_bridge.py`），
+      注册 `POST /dsh/bridge`（`ping / attach / note / delete`），走
+      `Zotero.Attachments.importFromFile` 与 `new Zotero.Item("note")`；
+      `--install` 写入 profile/extensions，`--check` 自检。**装完必须彻底重启 Zotero**。
+    - 禁止：在 `--check` 未返回 `ok:true` 时声称「已连上 Zotero」；把 `strict_max_version` 写成
+      正好等于当前版本（升级即失效），应覆盖整条版本线（当前 `10.9.*`）。
+
+66. **确定性步骤下沉成本地进程，模型只做翻译与审校**（v2.15）：
+    - 起因：流水线原本一步一脚本，每步都要看输出再决定下一步，一篇论文 40+ 次模型往返，
+      既慢又费 token——慢的根因是**架构**而不是算力。
+    - 判据：这一步需不需要语言判断？不需要（抽取/装配/标记/门禁/合并/索引/排版）就归 `pipeline.py`。
+    - 落地：`scripts/pipeline.py` 三个子命令 `prepare / check / finish` + `status`，
+      一条命令跑完一整段，失败以非零码退出并打印该步输出尾部，不静默跳过。
+      PDF 两条路：`build_pdf.py`（HTML→Edge）优先，产物无效自动回退 `build_pdf_reportlab.py`。
+    - 禁止：为「看得清楚」把机械步骤拆回逐步交互；新增脚本必须能被 pipeline 串起来。
+
+67. **机器检查结果解析必须与源计数交叉校验**（v2.15）：
+    - 起因：`qa.py` 的 `issues` 是 `[level, msg]` **数组对**而非对象，汇总脚本按 dict 解析，
+      结果「终端打印 46 条、审校清单 0 条」——审校漏掉整整一半机器线索，且不报错。
+    - 判据：任何「汇总/聚合」环节，都要有一个来自源头的独立计数可以对照。
+    - 落地：`pipeline.py` 分别解析 `qa.py`（`results[].issues` 数组对）与
+      `rules_check.py`（`findings[]` 对象），并与 `qa.py` 自报的 `fail/warn` 比对，
+      不一致立即打印 `[!] qa 计数不一致` 告警。
+    - 禁止：以解析结果为准静默通过；删掉交叉校验来「消除告警」。
 
 ## 成本控制（Dimitrov 2026 实测：会话口径 ¥2.44/篇，19 页）
 

@@ -35,7 +35,8 @@ for b in d.get("blocks", []):
     txt = (b.get("en") or "").strip()
     if b.get("kind") == "heading" and re.match(r"^(\d+\.?\s*)?references$", txt, re.I):
         in_refs = True
-        b["no_translate"] = True
+        # 参考文献「标题」本身要译为中文（"参考文献"），不能 no_translate；
+        # 仅其下的条目保留原文。否则交付门禁 A-覆盖会 BLOCK（标题缺中文）。
         n += 1
         continue
     if not in_refs or b.get("kind") not in ("para", "heading"):

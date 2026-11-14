@@ -88,7 +88,7 @@ def render(data):
     parts.append(
         f"原文：{esc(m['title_en'])}（{esc(m['author_year'])}）<br>"
         f"译名：{esc(m['title_zh'])}<br>"
-        f"Zotero 条目：{esc(m['item_key'])} ／ 附件：{esc(m['attachment_key'])} ／ 本样本覆盖 {esc(m['pages_in_sample'])}<br>"
+        f"Zotero 条目：{esc(m['item_key'])} ／ 附件：{esc(m['attachment_key'])} ／ 本样本覆盖 {('共 %d 页（%s–%s）' % (len(m['pages_in_sample']), m['pages_in_sample'][0], m['pages_in_sample'][-1]) if isinstance(m.get('pages_in_sample'), (list, tuple)) else esc(m.get('pages_in_sample')))}<br>"
         f"翻译：{esc(m['translator'])} ｜ 术语表：{esc(m['glossary_version'])} ｜ 版式：{esc(m['layout'])}"
     )
     if data.get("glossary") and m.get("print_glossary", True):
@@ -131,7 +131,7 @@ def render(data):
             parts.append("</table></div>")
         elif b["kind"] == "para" and b.get("no_translate"):
             # 参考文献：按学术惯例保留原文，不做翻译
-            parts.append(f'<div class="refitem"><span class="idtag">{esc(b["id"])}</span>{esc(b["en"])}</div>')
+            parts.append(f'<div class="refitem"><span class="idtag">{esc(b["id"])}</span>{esc(b["en"]).replace(chr(10), "<br>")}</div>')
         elif b["kind"] == "para":
             cls = "pair short" if len(b.get("en", "")) < 2000 else "pair"
             cont = " …（原文续下页）" if b.get("continues") else ""

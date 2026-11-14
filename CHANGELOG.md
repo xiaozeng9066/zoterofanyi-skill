@@ -8,6 +8,70 @@
 > v2.2–v2.7 的完整迭代史只存于本机离线备份
 > `~/.workbuddy/backups/zoterofanyi-skill-archive-20261114.bundle`（原归档库已于 2026-11-14 删除）。
 
+## v2.15 — 2026-11-14 · 修通「写回 Zotero」+ 把流水线沉成本地进程（规则 65–67）
+
+**背景**
+
+用户在两篇论文之后提了四条硬质疑：**①感觉没连上 Zotero；②不知道能不能迭代 / 同步 GitHub；
+③非常慢、没发挥机器性能、流程差；④token 消耗严重。** 前两条是事实误判，后两条是真问题——
+但误判的根因也是真 bug，所以这版全部按「先拿证据、再修东西」处理。
+
+**根因与修复**
+
+1. **Zotero 写回 404 的真因不是网络，是插件被 Zotero 禁用。**
+   本机 `extensions.json` 里 `dsh-zotero-bridge@local` 是 `active:false, appDisabled:true`，
+   它声明的 `strict_max_version` 是 `9.*`，而当前 Zotero 是 **10.x**（同机的 Zotero One 写的是
+   `10.9.*`，`active:true`）。版本越界 → Zotero 主动禁用 → `/dsh/bridge` 从未注册 → 404。
+   **修复**：`scripts/zotero_bridge/`（`manifest.json` + `bootstrap.js` + `install_bridge.py`），
+   注册 `POST /dsh/bridge`，支持 `ping / attach / note / delete`，走 Zotero 自己的数据层
+   （`Zotero.Attachments.importFromFile` / `new Zotero.Item("note")`），
+   因此条目树、同步状态、全文索引都正常，且**Zotero 开着也能写**，不必再关软件。
+   `install_bridge.py --check` 可自检，`--install` 直接写进 profile/extensions。
+
+2. **慢与费 token 的真因是「每步一次模型往返」。**
+   16 个脚本各自一次调用、每次都要读输出再决定下一步，一篇论文 40+ 次往返，
+   每次来回都把上下文重读一遍。**修复**：`scripts/pipeline.py` 把确定性步骤沉成本地进程，
+   三个子命令 —— `prepare`（抽取→装配→标记→元数据→Gate 1→分块→生成翻译指南）、
+   `check`（合并→QA→规则→审校分块→必查清单）、`finish`（应用修订→脚注索引→Gate 2→
+   出 PDF→校验），另有 `status` 看断点。模型只保留**翻译**与**审校**两批子代理。
+   `finish` 内建 PDF 双路线：先 HTML/Edge，产出无效则自动回退 `build_pdf_reportlab.py`
+   （本次收编进 `scripts/`，用内置 STSong-Light CID 字体，无需外部字体文件）。
+
+3. **审校清单静默丢条目（本次自查发现的质量事故）。**
+   `qa.py` 的 `issues` 是 `[level, msg]` **数组对**而非对象，pipeline 第一版按 dict 解析，
+   结果「终端打印 46 条、清单里 0 条」——审校会漏掉整整一半机器线索。
+   **修复**：单独解析数组对，并加**与 `qa.py` 自报 `fail/warn` 计数交叉校验**，不一致立即告警。
+
+**指标实测**
+
+- `finish` 全链路（应用 16 条修订 → 脚注索引 → Gate 2 → PDF → 校验）**4.6 秒**；
+  产出 `2,977,644` 字节 / 28 页 / 9,838 中文字符，与人工逐条执行的结果**字节完全一致**（可复现）。
+- 一篇论文的模型往返次数：**40+ → 6**（prepare / 翻译批 / check / 审校批 / finish / 挂回）。
+- 翻译与审校质量口径不变：Gate 1 与 Gate 2 均 0 BLOCK，译者≠审校者，全量二遍审校。
+- 黄金集回归：公开合成版 **14/14 PASS**、本机全强度 `fixtures_full` **14/14 PASS**。
+
+**新增规则**
+
+- **规则 65（Zotero 插件兼容门禁）**：桥接不通先查 `extensions.json` 的 `active / appDisabled`，
+  而不是猜网络或权限。`strict_max_version` 必须覆盖当前 Zotero 大版本（当前写 `10.9.*`）；
+  `install_bridge.py --check` 返回 ok 之前，不得声称「Zotero 已连接」。
+  Zotero 自带的 23119 只开 `/connector/*`（抓网页用），**没有写库 API**，别在这上面浪费探测。
+- **规则 66（确定性步骤下沉）**：凡是不需要语言判断的步骤（抽取/装配/标记/门禁/合并/索引/排版）
+  一律用 `pipeline.py` 本地跑完，不产生模型调用；模型只做翻译与审校。
+  新增脚本必须能被 pipeline 串起来，禁止「一步一确认」的交互式推进。
+- **规则 67（机器检查结果必须交叉校验）**：解析 `qa.py` / `rules_check.py` 输出后，
+  必须与自己报告的计数比对；不一致按「解析失败」处理并告警，禁止以解析结果为准静默通过。
+  本次 45 条 WARN 就是这么被藏起来的。
+
+**学到的东西**
+
+- 「连不上某个软件」在 Windows 上最常见的真因是**版本兼容门禁**（`appDisabled`），
+  不是防火墙；`extensions.json` 是可直接读的硬证据，比反复试探端点快一个数量级。
+- 慢的体感往往来自**架构**而不是算力：同样一台机器，把机械步骤交给本地进程，
+  4.6 秒能做完的事不该花十几分钟。判断标准是「这一步需不需要模型动脑」，不是「这一步复不复杂」。
+- 自动化流水线最危险的失败不是报错，而是**静默丢数据**（46 条变 0 条、不抛异常、还打印得像成功）。
+  凡有「汇总/聚合」环节，都要有一个来自源头的计数可以对照。
+
 ## v2.14 — 2026-11-14 · 公开库补写 README + 首页一致性门禁（规则 64）
 
 **背景**

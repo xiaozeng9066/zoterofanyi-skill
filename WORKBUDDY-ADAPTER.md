@@ -59,15 +59,46 @@ Zotero CLI（与 DSH MCP 同一实现，标准库）：
 
 ```bash
 ZCLI="$HOME/.dsh/mcp/zotero_mcp.py"
-"$PY" "$ZCLI" cli bridge                                    # 自检：期望 {"ok":true,"zotero":"9.0.6"}
+"$PY" "$ZCLI" cli bridge                                    # 自检：{"ok":true,"version":"1.0.0","zotero":"10.x"}
 "$PY" "$ZCLI" cli attach <KEY> <成品.pdf> --filename "<显示名>"
 "$PY" "$ZCLI" cli note   <KEY> --title "翻译项目备注｜..." --text-file "$W/reports/项目备注.md"
 "$PY" "$ZCLI" cli verify <KEY>                              # 交付门禁：必须 ok:true
 ```
 
-> 2026-11-14 实测：`cli bridge` 返回 `ok:false / HTTP 404`，说明 **Zotero 未运行或 Bridge 插件未加载**。
-> 挂回前先启动 Zotero；仍不通则按 SKILL.md「Zotero 写回」一节退回 sqlite 路径（此时必须完全退出 Zotero）。
-> 笔记只能挂**父条目**，附件必须有 `title`。
+### Bridge 不通怎么查（v2.15 / 规则 65，别再猜网络）
+
+`cli bridge` 返回 `HTTP 404` 时，**先读硬证据**，不要试防火墙、不要猜权限：
+
+```bash
+"$PY" -c "
+import json,os
+p=os.path.expanduser('~/AppData/Roaming/Zotero/Zotero/Profiles/')
+for prof in os.listdir(p):
+    f=os.path.join(p,prof,'extensions.json')
+    if os.path.isfile(f):
+        d=json.load(open(f,encoding='utf-8'))
+        for a in d['addons']:
+            print(a['id'],'active=',a['active'],'appDisabled=',a['appDisabled'],
+                  'maxVer=',[t.get('maxVersion') for t in a.get('targetApplications') or []])
+"
+```
+
+`appDisabled:true` 就是真因：插件的 `strict_max_version` 低于当前 Zotero 大版本，被 Zotero 主动禁用，
+端点从未注册。本机 2026-11-14 的实例：旧桥接写 `9.*`、Zotero 实为 `10.x` → 禁用 → 404。
+
+修复与安装（本 skill 自带）：
+
+```bash
+B="$S/zotero_bridge"
+"$PY" "$B/install_bridge.py" --build --install    # 打包 + 写进 profile/extensions
+"$PY" "$B/install_bridge.py" --check              # 彻底重启 Zotero 后再跑，期望 ok:true
+```
+
+> 也可以手动装：Zotero → 工具 → 插件 → 齿轮 → Install Add-on From File… → `dist/dsh-bridge.xpi`。
+> **必须彻底退出 Zotero 再打开**（托盘右键 → 退出），否则插件不加载。
+> 装好后 Zotero 开着也能 attach/note，不必再关软件。
+> 兜底路径：Zotero 已完全退出时，`zotero_mcp.py` 会自动直写 `zotero.sqlite`（事务 + 锁定检测，
+> 失败会明确报错而不是损坏库）。笔记只能挂**父条目**，附件必须有 `title`。
 
 ## 2. 最短可执行流水线（Bash 版）
 
