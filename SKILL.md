@@ -5,7 +5,11 @@ description: 把 Zotero 文献库（或任意本地）的英文 PDF 做成「英
 
 # Zotero 文献双语化（中英对照）
 
-> **WorkBuddy 继承版（2026-11-14，v2.2）**：本目录 `~/.workbuddy/skills/zoterofanyi/` 是**唯一可写真源**，
+> **先读 `README.md`**：它是「这个仓库是什么 / 怎么装 / 怎么用 / 去哪查」的入口，
+> 顶部状态表给出当前版本、规则编号、黄金集与翻译记忆的实测数字（规则 64 强制对账）。
+> 本文是**全量规则与流水线正文**，篇幅长，按需查而不是通读。
+
+> **WorkBuddy 继承版（2026-11-14 起；当前版本见 README 状态表）**：本目录 `~/.workbuddy/skills/zoterofanyi/` 是**唯一可写真源**，
 > `~/.dsh/skills/zoterofanyi/`（DeepSeek Harness 原版）保留为**只读历史归档**，不再修改，避免两份分叉。
 > WorkBuddy 环境的工具映射、Bash 版流水线、Zotero CLI 与迭代落地命令见 **`WORKBUDDY-ADAPTER.md`**——
 > 加载本 skill 后应先读它。下方规则正文、脚本、黄金集、翻译记忆均为原样继承，继续按原协议迭代。
@@ -611,6 +615,20 @@ Dimitrov 2026（19 页 / 11 图 3 表；翻译 11 块 + 审校 12 块；共 353 
       否则下一个人（或未来的我）会去找一个不存在的仓库。
     - 禁止：批量删除时跳过确认、把 PAT 写进任何文件或命令行历史、未经备份就删带历史的库。
 
+64. **README 与代码同源、同版本；首页过时等同 bug，靠门禁而不是靠自觉**（v2.14）：
+    - 起因：公开库首页长期缺失，补写时若把「v2.13 / 14 案例 / 规则 63」写死，几次迭代后就会误导
+      下一个人和下一次会话（**撒谎的首页比没有首页更糟**）。
+    - 落地：`README.md` 顶部有机器可读状态表（`<!-- readme-state:start -->` 之间），
+      `scripts/check_readme.py` 把它与真实来源逐项对齐：版本 ↔ `CHANGELOG.md` 首条、
+      规则编号 ↔ `SKILL.md` 最大编号、案例数 ↔ `fixtures/*/expected.json` 计数、
+      记忆条数 ↔ `tm/*.json` 长度、文档内路径 ↔ 是否真实存在。
+      `iterate_commit.py` 把它作为**提交前门禁**（与公开模式门禁同级），不一致直接 BLOCK。
+    - 数字用 `python scripts/check_readme.py --fix` 刷新；**说明文字只能人工同步**——
+      凡是让「怎么用」发生变化的改动（新增脚本、改入口、改流程、改依赖、改仓库拓扑），
+      必须同一次迭代里改 README 对应章节，否则下次看到的就是半真半假的文档。
+    - 禁止：删状态表标记来绕过门禁、只改数字不改文字、把 README 写成第二份 `SKILL.md`
+      （README 只讲「是什么 / 怎么装 / 怎么用 / 去哪查」，细节一律指向 `SKILL.md` 与适配层）。
+
 ## 成本控制（Dimitrov 2026 实测：会话口径 ¥2.44/篇，19 页）
 
 | 项 | 金额 | 占比 |
@@ -719,19 +737,22 @@ Dimitrov 2026（19 页 / 11 图 3 表；翻译 11 块 + 审校 12 块；共 353 
 - 修了尺子导致断言变化：确认是"预期的正确化"，再 `snapshot_case.py` 更新 `expected.json`，并在 CHANGELOG 写明理由；
 - 目标是**案例数单调增长**：案例越厚，后续改动的安全边界越宽。
 
-## 每次收尾必须写的四样
+## 每次收尾必须写的五样
 
 1. `reports/source_issues.md`（原文可疑处，逐条）
 2. `reports/usage.md`（会话口径 token/费用，含"编排 vs 子代理"拆分；WorkBuddy 下按适配层第 1 节标注「非账单口径」）
 3. `~/.workbuddy/skills/zoterofanyi/CHANGELOG.md` 追加一行：日期 / 篇目 / 四个指标的实测值 / 本轮学到的东西
    （`~/.dsh/` 原版为只读归档，不再写入）
-4. **一次 git 提交 + 同名版本 tag + 自动同步**：`scripts/iterate_commit.py -v <版本> -m "<说明>"`，
-   把本轮规则 / 术语 / 翻译记忆 / 黄金集 / CHANGELOG 的改动一起封存；CHANGELOG 版本号 = tag 名，
+4. **README 同步**（规则 64）：`README.md` 的状态表用 `scripts/check_readme.py --fix` 刷新；
+   若本次改动影响「怎么用」（新增脚本、改流程、改依赖、改仓库拓扑），人工改对应章节。
+   只改数字、说明文字照旧也算没做完——门禁拦的是数字，文字得自己负责。
+5. **一次 git 提交 + 同名版本 tag + 自动同步**：`scripts/iterate_commit.py -v <版本> -m "<说明>"`，
+   把本轮规则 / 术语 / 翻译记忆 / 黄金集 / CHANGELOG / README 的改动一起封存；CHANGELOG 版本号 = tag 名，
    **没有 commit hash 不算完成**（规则 55 / 适配层第 6 节）。v2.5 起脚本在提交后默认推送到
    origin 并回读校验远端 HEAD（规则 57 / 适配层第 8 节）；未连接云端时降级为本地提交 + WARNING。
 
 > 1、2 是每篇论文的工作区产物（`zotero-translate/<key>/reports/`），**不进 skill 的 git 仓库**；
-> 第 4 步提交的是 skill 目录内被改动的文件。两者边界不要混。
+> 3、4 改的是 skill 目录内的文档（CHANGELOG / README），第 5 步把它们的改动一起提交。两者边界不要混。
 
 ## 本机 Zotero MCP（2026-10 起可用）
 

@@ -10,7 +10,8 @@
   3. 默认强制跑黄金测试集，非全绿 → 拒绝提交；
   4. 同版本 tag 已存在 → 拒绝覆盖（历史只追加，不重写）；
   5. 提交信息规范化，自动打 annotated tag，并打印回滚命令；
-  6. 本机配置 local_config.json 绝不入库（跨机可移植性，规则 56）。
+  6. 本机配置 local_config.json 绝不入库（跨机可移植性，规则 56）；
+  7. README 状态表必须与 CHANGELOG / SKILL / fixtures / tm 一致（v2.14，规则 64）。
 
 **v2.5 起默认自动同步到云端**（用户 2026-11-14 要求「云端永远是最新的」）：
 提交 + tag 完成后，只要配置了 origin 就自动调用 sync_now.py --end，推送 main + 全部 tag
@@ -42,6 +43,7 @@ CHANGELOG = ROOT / "CHANGELOG.md"
 REGRESSION = ROOT / "scripts" / "regression_suite.py"
 SYNC_NOW = ROOT / "scripts" / "sync_now.py"
 PUBLIC_SANITIZE = ROOT / "scripts" / "public_sanitize.py"
+README_CHECK = ROOT / "scripts" / "check_readme.py"
 PUBLIC_MODE = ROOT / "PUBLIC-MODE.json"
 FIXTURES = ROOT / "fixtures"
 VERSION_RE = re.compile(r"^v\d+\.\d+(?:\.\d+)?$")
@@ -167,6 +169,27 @@ def public_mode_gate(python_exe: str) -> str:
     return "PUBLIC gate PASS"
 
 
+def readme_gate(python_exe: str) -> str:
+    """README 一致性门禁（v2.14，规则 64）：首页不许撒谎。
+
+    公开仓库的 README 是唯一入口，写死的「v2.10 / 14 案例 / 规则 61」会在几次迭代后
+    变成误导，而误导的首页比没有首页更糟。这里强制 `check_readme.py` 通过，
+    它比对的是 CHANGELOG 最新版本、SKILL.md 最大规则编号、fixtures 案例数、
+    tm 记忆条数与文档里提到的路径是否存在。数字可用 `--fix` 刷，文字仍需人工。
+    """
+    if not README_CHECK.is_file():
+        raise GateError("找不到 scripts/check_readme.py，README 门禁无法执行。")
+    proc = run([python_exe, str(README_CHECK)], check=False, timeout=60)
+    out_text = (proc.stdout + "\n" + proc.stderr).strip()
+    if proc.returncode != 0:
+        raise GateError(
+            "README 与真实来源不一致，禁止提交。\n" + out_text[-1200:] +
+            "\n处理：python scripts/check_readme.py --fix（刷新数字）+ 人工同步说明文字。"
+        )
+    print("README 一致性门禁：通过")
+    return "README gate PASS"
+
+
 def changed_files(dry_run: bool) -> list[str]:
     if dry_run:
         out = git("add", "-n", "-A").stdout
@@ -244,6 +267,7 @@ def main() -> int:
         if not status:
             raise GateError("没有任何文件改动 —— 只在对话里总结不算迭代，拒绝空提交。")
         check_changelog(args.version)
+        readme_status = readme_gate(args.python)
         public_gate = public_mode_gate(args.python)
         regression = run_regression(args.python, args.skip_regression)
 
@@ -268,6 +292,7 @@ def main() -> int:
             f"Date: {date.today().isoformat()}\n"
             f"CHANGELOG: {args.version} entry present\n"
             f"Regression: {regression}\n"
+            f"Readme: {readme_status}\n"
             f"PublicGate: {public_gate}\n"
             f"Sync: {sync_desc}\n"
             f"Changed: {len(files)} files" + (f", {shortstat}" if shortstat else "") + "\n"

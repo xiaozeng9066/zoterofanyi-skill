@@ -15,7 +15,8 @@
 
 加载顺序（不要跳过）：
 
-1. `SKILL.md` —— 全量规则：交付约定、流水线、60 条工程规则、版式特例、质量红线、迭代协议；
+0. `README.md` —— 30 秒判断「这是什么、怎么装、怎么用」；**状态表就是当前版本坐标**（规则 64）；
+1. `SKILL.md` —— 全量规则：交付约定、流水线、64 条工程规则、版式特例、质量红线、迭代协议；
 2. `CHANGELOG.md` —— 最近版本与四指标基线，确认当前版本号、规则编号与 git tag 坐标；
 3. 本文件 —— WorkBuddy 环境映射与可执行命令；**第 6 节 git 门禁、第 7 节跨机本地化、
    第 8 节 GitHub 云端同步与全局安装、第 9 节公开库发布**；
@@ -138,20 +139,21 @@ MIDDLE=$(find "$W/work/mineru" -name "*_middle.json" | head -1)
 **目标函数优先级不可颠倒**：准确 → 少错 → 速度 → 成本。省钱不许碰质量红线
 （全量二遍审校、术语表+术语审计、图表与脚注交叉核对、三道门禁全绿）。
 
-### 每篇收尾的八个动作（必须改文件，只在对话里说不算迭代）
+### 每篇收尾的九个动作（必须改文件，只在对话里说不算迭代）
 
 | # | 动作 | 落地位置 / 命令 |
 |---|---|---|
 | 1 | 归类本篇所有 FAIL/WARN：**尺子错 / 译文错 / 原文问题 / 新版面特性** | `$W/reports/` 下的 qa.json、rules.json、preflight.json、reg_*.log |
 | 2 | 尺子错 → 修检查器，**改后必跑黄金集** | `$S/qa.py` / `rules_check.py` / `audit_document.py`；`$PY "$S/regression_suite.py" --fixtures "$K/fixtures" --verbose` |
-| 3 | 新版面特性 → 在 SKILL.md「工程规则」加**新的编号条目**（当前到 55，下一条从 56 起） | `$K/SKILL.md` |
+| 3 | 新版面特性 → 在 SKILL.md「工程规则」加**新的编号条目**（当前到 64，下一条从 65 起） | `$K/SKILL.md` |
 | 4 | 译文错 → 改译文 + 回流翻译记忆 | `$PY "$S/build_memory.py" --changes "$W/reports/changes*.json" --tm "$K/tm"`（增量合并，不覆盖历史） |
 | 5 | 原文问题 → 单独立表，不得靠译文掩盖 | `$W/reports/source_issues.md`（模板 `$K/templates/source_issues_template.md`） |
 | 6 | 黄金集单调增长：**每篇新增 full + extract 两个案例** | `$PY "$S/snapshot_case.py" --kind full ... --fixtures "$K/fixtures"`；`--kind extraction` 加 `--must-contain/--must-not-contain` 守读序与 OCR 污染 |
 | 7 | CHANGELOG 追加一行 + 项目日志 | `$K/CHANGELOG.md`（日期 / 篇目 / 四指标实测 / 本轮学到的东西）；`.workbuddy/memory/YYYY-MM-DD.md` |
-| 8 | **git 提交 + 版本 tag + 云端同步（收口，缺此不算迭代完成）** | `$PY "$S/iterate_commit.py" -v <下一版本> -m "<一句话>"`；自动校验 CHANGELOG 同版本条目 / 实际文件改动 / 黄金集全绿 / tag 不重复，通过后 add + commit + annotated tag，**并默认自动推送到 origin + 回读远端 HEAD 校验**（v2.5 / 规则 57）。先看 `--status`、`--dry-run` 预演；临时不联网用 `--no-push`，强制要求已连接用 `--push`；未连接 GitHub 时降级为本地提交 + WARNING |
+| 8 | **README 与代码同源**（v2.14 / 规则 64） | `$PY "$S/check_readme.py" --fix` 刷新状态表数字；**另有「怎么用」变化就手改对应章节**；不改会被第 9 步门禁 BLOCK |
+| 9 | **git 提交 + 版本 tag + 云端同步（收口，缺此不算迭代完成）** | `$PY "$S/iterate_commit.py" -v <下一版本> -m "<一句话>"`；自动校验 CHANGELOG 同版本条目 / README 一致性 / 实际文件改动 / 黄金集全绿 / 公开模式隐私 / tag 不重复，通过后 add + commit + annotated tag，**并默认自动推送到 origin + 回读远端 HEAD 校验**（v2.5 / 规则 57）。先看 `--status`、`--dry-run` 预演；临时不联网用 `--no-push`，强制要求已连接用 `--push`；未连接 GitHub 时降级为本地提交 + WARNING |
 
-> 第 8 步是第 1–7 步的**封存动作**：只有规则、术语、fixture、CHANGELOG 都已写回文件后，
+> 第 9 步是第 1–8 步的**封存动作**：只有规则、术语、fixture、CHANGELOG、README 都已写回文件后，
 > 才把它们一次性固化成一个可对照、可回滚的版本。CHANGELOG 版本号必须与 tag 同名。
 
 ### 护栏（硬性）
@@ -187,11 +189,12 @@ MIDDLE=$(find "$W/work/mineru" -name "*_middle.json" | head -1)
 
 | 项 | 值 |
 |---|---|
-| 版本 / tag | **v2.13**（代理端点候选 + 账户只留一个远端；上一版 v2.12）；下一版从 **v2.14** 起。公开主库历史从 v2.8 干净初始提交起算，v2.2–v2.7 仅存本机 bundle |
+| 版本 / tag | **v2.14**（补写公开库 README + README 一致性门禁；上一版 v2.13）；下一版从 **v2.15** 起。公开主库历史从 v2.8 干净初始提交起算，v2.2–v2.7 仅存本机 bundle |
 | git 仓库 | `~/.workbuddy/skills/zoterofanyi/` 本身（独立仓库，分支 `main`）。**origin = `https://github.com/xiaozeng9066/zoterofanyi-skill.git`（public，公开主库，账户内唯一远端）**；旧归档库 `.../zoterofanyi-skill-archive` 已于 2026-11-14 删除（本机 bundle 留底） |
 | 云端同步 | `sync_now.py --start / --end / --status`；开工拉、收尾 `iterate_commit.py` 自动推并回读远端 HEAD。GitHub 连接器为 App，建仓 403 / 新仓库 404，**不影响 git 同步**（规则 58） |
 | 网络路由 | `local_config.json` 的 `network` 段：**代理优先**（`mode=proxy-required`，代理内重试 3 次），代理彻底不通才 `fallback=warn` 应急降级并告警；`--route direct` 仅诊断（规则 61） |
-| 工程规则编号 | 1–63，下一条 **64**（v2.13 新增 63「远端唯一化 + 删仓库四步」，并把 61 补上「代理端点会漂移」） |
+| 工程规则编号 | 1–64，下一条 **65**（v2.14 新增 64「README 与代码同源，首页过时等同 bug」） |
+| 首页 / README | `README.md`：定位、产出形态、快速开始、仓库结构、脚本速查、质量体系、迭代机制、隐私边界、常见坑。顶部状态表由 `scripts/check_readme.py` 与真实来源对账，`iterate_commit.py` 强制校验（规则 64）；数字用 `--fix` 刷，文字人工改 |
 | 黄金测试集 | 14 案例，**14/14 PASS**（真源本机实测）；脱敏副本亦 **14/14 PASS + 残留 0 处**（`public_sanitize.py --verify`） |
 | 公开版 | `scripts/public_sanitize.py` 生成 `dist/public`（已 gitignore）；发布指南 `PUBLIC-RELEASE.md`、第 9 节。**私有主库仍是唯一真源，全强度 fixtures 不降级** |
 | 翻译记忆 | 76 条词级纠正 + 9 条整句模式（含 3EHBMRQR / E2HE73V2 / RB7BRXRA 等篇审校纠正） |
@@ -228,7 +231,7 @@ MIDDLE=$(find "$W/work/mineru" -name "*_middle.json" | head -1)
   `i18n.commitEncoding=utf-8`；提交身份 `<USER> <zengf@localhost>`（只作用于本仓库，未改全局）。
   改身份：`git -C "$K" config user.email "author@example.org"`。
 
-### 每次迭代的标准收尾（第 3 节第八个动作）
+### 每次迭代的标准收尾（第 3 节第九个动作）
 
 ```bash
 K="%USERPROFILE%"
@@ -238,16 +241,17 @@ S="$K/scripts"
 # 1) 看坐标：当前 tag、最近提交、未提交改动
 "$PY" "$S/iterate_commit.py" --status
 
-# 2) 按第 3 节把前七个动作改完文件（含 CHANGELOG 的 vX.Y 条目），再预演
-"$PY" "$S/iterate_commit.py" -v v2.6 -m "修 qa 引用编号误报 + 回流术语" --dry-run
+# 2) 按第 3 节把前八个动作改完文件（含 CHANGELOG 的 vX.Y 条目 + README 状态表），再预演
+"$PY" "$S/check_readme.py" --fix          # 刷新 README 里的版本/规则/案例/记忆数字
+"$PY" "$S/iterate_commit.py" -v v2.15 -m "修 qa 引用编号误报 + 回流术语" --dry-run
 
-# 3) 正式提交：强制跑黄金集 → add / commit / annotated tag
+# 3) 正式提交：强制跑黄金集与 README 门禁 → add / commit / annotated tag
 #    → 已连接 GitHub 时自动 push + 回读远端 HEAD 校验（v2.5 默认，见第 8 节）
-"$PY" "$S/iterate_commit.py" -v v2.6 -m "修 qa 引用编号误报 + 回流术语"
+"$PY" "$S/iterate_commit.py" -v v2.15 -m "修 qa 引用编号误报 + 回流术语"
 #    临时不联网：加 --no-push；强制要求已连接：加 --push（无 origin 直接 BLOCK）
 ```
 
-提交信息格式 `iterate(vX.Y): <一句话>`，正文自动带 `Date / CHANGELOG / Regression / Changed`；
+提交信息格式 `iterate(vX.Y): <一句话>`，正文自动带 `Date / CHANGELOG / Regression / Readme / PublicGate / Changed`；
 tag 一律与 CHANGELOG 版本号同名，用 `git tag -a`（annotated，带说明）。
 
 ### 门禁（不通过就 BLOCK，退出码 2）
@@ -259,6 +263,8 @@ tag 一律与 CHANGELOG 版本号同名，用 `git tag -a`（annotated，带说�
 | 工作区有实际文件改动 | 空提交 / "口头迭代" |
 | `regression_suite.py` 全绿 | 改坏检查器却提交 |
 | 同名 tag 尚不存在 | 覆盖 tag、篡改已发布的历史 |
+| `README.md` 状态表与真实来源一致（`check_readme.py`） | 首页写着上一版的版本号 / 案例数 / 规则编号，误导读文档的人 |
+| 公开模式下 `public_sanitize.py --gate` 通过 | 把真实论文正文推进公开库 |
 
 `--skip-regression` 只用于确定无脚本改动的场合，且会在提交信息里标注 `SKIPPED`，
 **不许用它绕过质量红线**。门禁 BLOCK 时先修到通过，别急着换版本号。
