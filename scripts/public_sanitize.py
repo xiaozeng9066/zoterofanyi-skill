@@ -375,7 +375,7 @@ def cmd_slim(out: Path) -> int:
                 continue
             t2 = EMAIL_RE.sub(PLACEHOLDER_EMAIL, t)
             t2 = re.sub(r"C:[/\\]Users[/\\][^\s\"'`)}\]>,;]+", "%USERPROFILE%", t2)
-            # 裸本机用户名 → <USER>；不动 GitHub 账户 zengfanfu 与本地身份 zengf@localhost
+            # 裸本机用户名 → <USER>；不动 GitHub 账户 xiaozeng9066 与本地身份 zengf@localhost
             t2 = re.sub(r"(?<![\w@])<USER>(?![\w@])", "<USER>", t2)
             dst.write_text(t2, encoding="utf-8", newline="\n")
             continue
