@@ -517,6 +517,8 @@ def main() -> int:
                 ok = do_fetch(args.dry_run) if has_remote() else False
                 info = snapshot(ok)
                 info["json"] = True
+                info["route"] = _LAST_ROUTE[0]
+                info["degraded"] = _DEGRADED[0]   # 本次是否绕过代理（v2.11 声称、v2.12 补齐）
                 info["remote_head"] = (remote_head_sha() or "")[:12] if ok else None
                 print(json.dumps(info, ensure_ascii=False, indent=2))
                 return 0
