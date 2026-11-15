@@ -176,7 +176,7 @@ MIDDLE=$(find "$W/work/mineru" -name "*_middle.json" | head -1)
 |---|---|---|
 | 1 | 归类本篇所有 FAIL/WARN：**尺子错 / 译文错 / 原文问题 / 新版面特性** | `$W/reports/` 下的 qa.json、rules.json、preflight.json、reg_*.log |
 | 2 | 尺子错 → 修检查器，**改后必跑黄金集** | `$S/qa.py` / `rules_check.py` / `audit_document.py`；`$PY "$S/regression_suite.py" --fixtures "$K/fixtures" --verbose` |
-| 3 | 新版面特性 → 在 SKILL.md「工程规则」加**新的编号条目**（当前到 74，下一条从 75 起） | `$K/SKILL.md` |
+| 3 | 新版面特性 → 在 SKILL.md「工程规则」加**新的编号条目**（当前到 75，下一条从 76 起） | `$K/SKILL.md` |
 | 4 | 译文错 → 改译文 + 回流翻译记忆 | `$PY "$S/build_memory.py" --changes "$W/reports/changes*.json" --tm "$K/tm"`（增量合并，不覆盖历史） |
 | 5 | 原文问题 → 单独立表，不得靠译文掩盖 | `$W/reports/source_issues.md`（模板 `$K/templates/source_issues_template.md`） |
 | 6 | 黄金集单调增长：**每篇新增 full + extract 两个案例** | `$PY "$S/snapshot_case.py" --kind full ... --fixtures "$K/fixtures"`；`--kind extraction` 加 `--must-contain/--must-not-contain` 守读序与 OCR 污染 |
@@ -224,7 +224,7 @@ MIDDLE=$(find "$W/work/mineru" -name "*_middle.json" | head -1)
 | git 仓库 | `~/.workbuddy/skills/zoterofanyi/` 本身（独立仓库，分支 `main`）。**origin = `https://github.com/xiaozeng9066/zoterofanyi-skill.git`（public，公开主库，账户内唯一远端）**；旧归档库 `.../zoterofanyi-skill-archive` 已于 2026-11-14 删除（本机 bundle 留底） |
 | 云端同步 | `sync_now.py --start / --end / --status`；开工拉、收尾 `iterate_commit.py` 自动推并回读远端 HEAD。GitHub 连接器为 App，建仓 403 / 新仓库 404，**不影响 git 同步**（规则 58） |
 | 网络路由 | `local_config.json` 的 `network` 段：**代理优先**（`mode=proxy-required`，代理内重试 3 次），代理彻底不通才 `fallback=warn` 应急降级并告警；`--route direct` 仅诊断（规则 61） |
-| 工程规则编号 | 1–74，下一条 **75**（v2.19 新增 74「Zotero 挂回首选官方 Local API」） |
+| 工程规则编号 | 1–75，下一条 **76**（v2.21 新增 75「门禁统一入口 gate.py + 总纲 GATES.md」） |
 | 首页 / README | `README.md`：定位、产出形态、快速开始、仓库结构、脚本速查、质量体系、迭代机制、隐私边界、常见坑。顶部状态表由 `scripts/check_readme.py` 与真实来源对账，`iterate_commit.py` 强制校验（规则 64）；数字用 `--fix` 刷，文字人工改 |
 | 黄金测试集 | 15 案例，**15/15 PASS**（真源本机实测）；脱敏副本亦 **15/15 PASS + 残留 0 处**（`public_sanitize.py --verify`） |
 | 公开版 | `scripts/public_sanitize.py` 生成 `dist/public`（已 gitignore）；发布指南 `PUBLIC-RELEASE.md`、第 9 节。**私有主库仍是唯一真源，全强度 fixtures 不降级** |

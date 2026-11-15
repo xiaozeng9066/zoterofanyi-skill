@@ -8,6 +8,37 @@
 > v2.2–v2.7 的完整迭代史只存于本机离线备份
 > `~/.workbuddy/backups/zoterofanyi-skill-archive-20261114.bundle`（原归档库已于 2026-11-14 删除）。
 
+## v2.21 — 2026-11-15 · 门禁统一入口 gate.py + 总纲 GATES.md（规则 75）
+
+**背景**
+
+用户提出「要把 skill 在不同电脑间后续运行，系统梳理和优化门禁」，并按四类框架归纳：
+① 资源门禁（软件/配置/Zotero/GPU/git 连通）；② 流程门禁（跑哪些流程、必走哪些、
+含收尾反馈时间/token）；③ 质量门禁（保质量/提速/省 token）；④ 其他门禁（用户没想到的）。
+痛点优先级确认：**换机一键体检「缺啥补啥」**，落地深度选「门禁总纲 + 统一入口」。
+
+**根因（梳理结论）**
+
+门禁不是「缺单点」，而是「散落四处、靠记忆 + 协议维系」：两道 preflight、黄金集、隐私、
+README 同源、git 收口、Zotero、代理、GPU 分散在 SKILL.md / 适配层 / README / 迭代协议，
+换机时没人能一眼看清「这台机器该过哪些关、漏没漏关」，只能一个个手动跑脚本试。
+
+**落地**
+
+- 新增 `scripts/gate.py`：一条命令体检四类门禁（resources / pipeline / quality / meta），
+  每项 PASS/BLOCK/WARN/SKIP + 缺失补救命令，总判定「就绪/部分就绪/未就绪」，
+  `--offline` / `--json` / 退出码区分。零新依赖，复用 paths/zotero_api/detect_env 的探测逻辑。
+- 新增 `GATES.md`：门禁总纲（一张地图看清四类、谁负责、怎么自检、换机怎么一键体检）。
+- 新增规则 75：门禁统一入口 + 元门禁（守门人自检，堵「回归绿了、成品没验」的缝）。
+- **换机口诀**：`bootstrap.py --remote <url>` → `detect_env.py` → `gate.py` → 补齐 BLOCK → 开跑。
+  四类门禁只有**资源门禁不随 git 走**，其余三层由版本资产保证一致。
+
+**实测**
+
+- 本机 `gate.py` 全量 37 项 PASS，总判定「就绪」；GPU 探测到 RTX 3060 Ti（CUDA 可用）。
+- 黄金集 15/15 PASS；README 门禁通过。
+- 本版为纯门禁基建，无翻译/审校 token 变化；新增脚本 + 文档各一。
+
 ## v2.20 — 2026-11-15 · 修 Local API 三阶段上传参数位置（query string → form body）
 
 **背景**

@@ -784,6 +784,22 @@ Dimitrov 2026（19 页 / 11 图 3 表；翻译 11 块 + 审校 12 块；共 353 
       三阶段上传的 `md5/filename/filesize/mtime` 与 `upload` 参数必须放 **form body**
       （`application/x-www-form-urlencoded`），放 query string 会裸 500（v2.20 实测）。
     - 禁止：再靠「直接复制 xpi 进 extensions 目录」装插件——Zotero 会静默禁用，白折腾。
+75. **门禁要有统一入口和总纲，换机靠「一键体检」而不是靠记性**（v2.21）：
+    - 起因：门禁（两道 preflight、黄金集、隐私、README 同源、git 收口、Zotero、代理、GPU）
+      散落在 SKILL.md / 适配层 / README / 迭代协议四处，靠「记忆 + 协议」维系；换电脑时
+      没人能一眼看清「这台机器该过哪些关、漏没漏关」，只能一个个手动跑脚本试。
+    - 落地：`scripts/gate.py` 一条命令体检四类门禁（`resources` 软件/配置/Zotero/git/代理/GPU、
+      `pipeline` 流程、`quality` 质量、`meta` 门禁自检），每项给 PASS/BLOCK/WARN/SKIP +
+      缺失时的补救命令，最后给「就绪/部分就绪/未就绪」总判定；`--offline` 跳过联网、
+      `--json` 供脚本消费，退出码 `1` = 有必需项缺失。总纲见 `GATES.md`。
+    - **元门禁（你没想到的那一类）**：门禁脚本本身是「守门人」，守门人坏了没人拦。
+      `gate.py meta` 校验 12 个门禁脚本可 import（语法有效、依赖可解析），防门禁静默失效；
+      配合规则 70「渲染 bug 必须读到成品字形坐标才算验证通过」，堵住「回归绿了、成品没验」的缝。
+    - **换机口诀**：`bootstrap.py --remote <url>` → `detect_env.py` → `gate.py` → 补齐 BLOCK → 开跑。
+      四类门禁里只有**资源门禁不随 git 走**（本机路径/GPU/代理），其余三层由版本资产保证一致，
+      所以换机真正要重新体检的只有资源这一层。
+    - 禁止：把门禁结论写死在文档里当常量（每台机器不同）；新增门禁脚本不接进 `gate.py`，
+      让它继续散落在「记得才跑」的灰色地带。
 
 ## 成本控制（Dimitrov 2026 实测：会话口径 ¥2.44/篇，19 页）
 

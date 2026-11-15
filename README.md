@@ -8,8 +8,8 @@
 <!-- readme-state:start -->
 | 项 | 当前值 |
 |---|---|
-| 当前版本 | `v2.20` |
-| 工程规则 | 1–**74** 条（下一条 75） |
+| 当前版本 | `v2.21` |
+| 工程规则 | 1–**75** 条（下一条 76） |
 | 黄金测试集 | **15** 个案例，15 PASS |
 | 翻译记忆 | **81** 条词级纠正 + **9** 条整句模式 |
 | 公开主库 | `github.com/xiaozeng9066/zoterofanyi-skill` |
@@ -25,8 +25,7 @@
 ## 这是什么 / 不是什么
 
 **是**：一个自迭代的 workBuddy / DSH skill，包含完整流水线（抽取 → 翻译 → 校验 → 渲染 → 挂回）、
-74 条实测工程规则、15 个黄金回归案例、翻译记忆库，以及「每篇论文都要让 skill 变强一点」的迭代协议。
-
+75 条实测工程规则、15 个黄金回归案例、翻译记忆库，以及「每篇论文都要让 skill 变强一点」的迭代协议。
 **不是**：不是 pip 包，不是通用 PDF 翻译器。它假设论文有文本层、以英文撰写、需保留版面语义。
 
 ## 怎么工作（一张图）
@@ -111,11 +110,12 @@ python scripts/regression_suite.py --fixtures fixtures   # 应为 15/15 PASS
 
 | 路径 | 内容 |
 |---|---|
-| `SKILL.md` | 主文档：何时用、交付约定、流水线、**74 条工程规则**、各版式特例 |
+| `SKILL.md` | 主文档：何时用、交付约定、流水线、**75 条工程规则**、各版式特例 |
 | `WORKBUDDY-ADAPTER.md` | WorkBuddy 工具映射、Bash 版流水线、git / 同步 / 公开库专章 |
 | `CHANGELOG.md` | 一行一版；**版本号 = git tag 名** |
 | `PORTABILITY.md` | 换电脑：git 同步 + `local_config.json` 本地化 |
 | `PUBLIC-RELEASE.md` | 公开化的完整论证与 SOP（数据最小化、干净历史） |
+| `GATES.md` | **门禁总纲**：四类门禁（资源/流程/质量/元）单一地图，换机一键体检入口 |
 | `PUBLIC-NOTICE.md` | 本公开库的脱敏说明与仓库拓扑 |
 | `SETUP.md` / `WINDOWS-INSTALL.md` | 一次性环境准备 / Windows 实测状态 |
 | `MIGRATION.md` | 从 DSH 迁移到 WorkBuddy 的记录 |
@@ -130,6 +130,7 @@ python scripts/regression_suite.py --fixtures fixtures   # 应为 15/15 PASS
 | 想做什么 | 命令 |
 |---|---|
 | 一键编排（三个阶段） | `pipeline.py prepare / check / finish` |
+| **门禁统一体检** | `gate.py`（换机 `gate.py resources` 一键查缺啥补啥） |
 | 跑全部回归 | `regression_suite.py --fixtures fixtures` |
 | 交付前门禁 | `preflight.py --stage full` |
 | 术语是否统一 | `term_audit.py` + `templates/term_exceptions.json` |
@@ -145,9 +146,11 @@ python scripts/regression_suite.py --fixtures fixtures   # 应为 15/15 PASS
 
 1. **两道 preflight 门禁**：开译前 `--stage skeleton`、交付前 `--stage full`，都必须 0 BLOCK。
 2. **15 个黄金案例**：改任何 `scripts/` 后必须全绿；有案例由 PASS 变 FAIL 不得合并。
-3. **74 条工程规则**：每条都是踩坑换来的，写在 `SKILL.md`，编号只增不改。
+3. **75 条工程规则**：每条都是踩坑换来的，写在 `SKILL.md`，编号只增不改。
 4. **翻译记忆**：`tm/term_fixes.json` 记录词级纠正（如 `suggest` 不译「表明」），
    `tm/error_patterns.json` 记录整句模式，`build_memory.py` 增量回流。
+
+上面四层的全景与换机一键体检见 **`GATES.md`**（门禁总纲）与 `gate.py`（统一入口）。
 
 目标函数优先级固定：**准确 → 少错 → 速度 → 成本**。为省钱跳过全量二遍审校、跳过门禁或回归，
 属于违规操作，不是「优化」。
