@@ -50,6 +50,37 @@ def find_caption(page, rect):
     return "", rect
 
 
+def detect_rotated_table(page, rect):
+    """检测表格是否「横放」（原 PDF 把宽表旋转 90° 排在竖版页上）。
+
+    这类表在原生文本层里，字符的 dir 是竖向 (0,±1) 而非横向 (±1,0)。
+    返回旋转角度（度）：-90 表示需逆时针转 90° 回正，0 表示无需旋转。
+    """
+    try:
+        d = page.get_text("rawdict", clip=rect)
+    except Exception:
+        return 0
+    horiz = vert = 0
+    for blk in d.get("blocks", []):
+        for ln in blk.get("lines", []):
+            dx, dy = ln.get("dir", (1, 0))
+            if abs(dx) >= abs(dy):      # 横向文字
+                horiz += 1
+            else:                        # 竖向文字（横放表）
+                vert += 1
+    total = horiz + vert
+    if total == 0 or vert <= horiz:      # 竖向不占多数 → 正常横表，不旋转
+        return 0
+    # 竖向文字占多数 → 横放表。dir=(0,1) 表示自上而下，需逆时针 90° 回正；
+    # dir=(0,-1) 表示自下而上，需顺时针 90°。用首条竖向行定方向。
+    for blk in d.get("blocks", []):
+        for ln in blk.get("lines", []):
+            dx, dy = ln.get("dir", (0, 1))
+            if abs(dy) > abs(dx):
+                return -90 if dy > 0 else 90
+    return -90
+
+
 SOFT = "\u00ad\u00ac"   # 软连字符等：本类 PDF 的文本层会用它们表示断词
 
 def clean(text):
@@ -236,6 +267,18 @@ def main():
                 name = f"p{pno}_{kind}_{len(regions) + 1}"
                 path = assets / f"{name}.png"
                 page.get_pixmap(clip=crop_rect, dpi=args.dpi).save(path)
+                # 横放表纠正：原 PDF 把宽表旋转 90° 排在竖版页上，裁出的图文字是竖的。
+                # 检测文字方向，竖向则旋转回正，转正后宽高比 >1，渲染层会自动放横向页。
+                if kind == "table":
+                    rot = detect_rotated_table(page, crop_rect)
+                    if rot:
+                        try:
+                            from PIL import Image as PILImage
+                            im = PILImage.open(path)
+                            im = im.rotate(rot, expand=True)
+                            im.save(path)
+                        except Exception as e:
+                            print(f"    [WARN] 横放表 {name} 旋转失败: {e}", file=sys.stderr)
                 entry = {"kind": kind, "file": path.name,
                          "rect": [round(v, 1) for v in crop_rect], "dpi": args.dpi}
                 if cap_en:

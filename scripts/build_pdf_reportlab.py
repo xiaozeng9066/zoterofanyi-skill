@@ -16,10 +16,11 @@ from reportlab.lib.pagesizes import A4, landscape
 from reportlab.lib.units import mm
 from reportlab.lib.enums import TA_CENTER, TA_LEFT, TA_JUSTIFY
 from reportlab.lib.styles import ParagraphStyle
+from reportlab.lib import colors
 from reportlab.lib.colors import HexColor
 from reportlab.platypus import (SimpleDocTemplate, Paragraph, Spacer, Image,
                                 PageBreak, KeepTogether, NextPageTemplate,
-                                PageTemplate, Frame)
+                                PageTemplate, Frame, HRFlowable)
 from reportlab.pdfbase import pdfmetrics
 from reportlab.pdfbase.cidfonts import UnicodeCIDFont
 
@@ -123,6 +124,9 @@ def make_styles():
         "cap_en": ParagraphStyle("cap_en", fontName="Helvetica", fontSize=8.5, leading=11,
                                  alignment=TA_CENTER, spaceAfter=6,
                                  textColor=HexColor("#555")),
+        "note": ParagraphStyle("note", fontName=CJK, fontSize=8, leading=11,
+                               alignment=TA_LEFT, spaceBefore=2, spaceAfter=2,
+                               textColor=HexColor("#555")),
     }
 
 
@@ -156,16 +160,17 @@ def build(json_in, out_pdf, label=""):
     story.append(Spacer(1, 8))
 
     # ---- 正文 ----
-    # 宽表格/宽插图自动转横向：先判断图片宽高比，宽 >> 高（宽表）则整块切到横版页
-    wide_ratio = 1.25  # 宽/高 超过此值视为「横向更合适」的宽表/宽图
+    # 图/表按宽高比决定横竖：宽 >> 高（宽图/宽表）才横向。竖长表（行多列少）
+    # 转横向反而因横向页高度更小而缩得更小，故保持竖版放大到整页宽更清晰。
+    # 「横放表」（原 PDF 旋转 90° 的宽表）已由 extract_mineru.py 旋转回正，正图宽高比 >1 自然触发横向。
+    wide_ratio = 1.25
     landscape_active = False
+    prev_was_figure_like = False
 
     for b in blocks:
         kind = b.get("kind")
         pages = b.get("pages") or []
         sl = src_label(pages)
-        if sl:
-            story.append(Paragraph(sl, st["src"]))
 
         # 检测是否宽图/宽表，决定是否切横向
         if kind in ("table", "figure"):
@@ -180,19 +185,18 @@ def build(json_in, out_pdf, label=""):
                         want_landscape = (iw / ih) > wide_ratio
                     except Exception:
                         want_landscape = False
-            # 每个图/表块都显式声明自己该落在哪个方向的页上（NextPageTemplate 是
-            # 一次性的，只在「方向切换」时设会漏掉「连续多个横向块溢出到下一页」的情况
-            # ——溢出的下一页会回落到默认竖版，导致宽表被塞进竖版、左右裁切。v2.16 前表 6/7 即如此）。
-            if want_landscape:
-                story.append(NextPageTemplate("landscape"))
-                if not landscape_active:
-                    story.append(PageBreak())
-                landscape_active = True
-            else:
-                story.append(NextPageTemplate("portrait"))
-                if landscape_active:
-                    story.append(PageBreak())
-                landscape_active = False
+            # 图表一律独占一页：无条件 NextPageTemplate 声明方向 + PageBreak 强制换页。
+            # NextPageTemplate 是一次性的，且图表夹在正文之间时，若与正文共享页面，
+            # 溢出换页会落到默认竖版（v2.17/v2.18 反复踩坑：图3、表2 因此被塞进竖版）。
+            # 独占一页对「中英对照精读」也是更好的排版——图表不被挤、方向绝对可控。
+            story.append(NextPageTemplate("landscape" if want_landscape else "portrait"))
+            story.append(PageBreak())
+            landscape_active = want_landscape
+            prev_was_figure_like = True
+        else:
+            prev_was_figure_like = False
+            if sl:
+                story.append(Paragraph(sl, st["src"]))
 
         if kind == "title":
             # 标题已在顶部，正文里若再次出现则作为普通标题
@@ -227,6 +231,8 @@ def build(json_in, out_pdf, label=""):
             txt = f"注 {mk}：{zh}" if zh else f"注 {mk}：{en}"
             story.append(Paragraph(txt, st["fn"]))
         elif kind in ("equation", "figure", "table"):
+            if sl:
+                story.append(Paragraph(sl, st["src"]))
             img = b.get("image", "")
             if img:
                 ip = (workdir / img) if not Path(img).is_absolute() else Path(img)
@@ -238,7 +244,9 @@ def build(json_in, out_pdf, label=""):
                         page_w = WIDTH if not landscape_active else HEIGHT
                         page_h = HEIGHT if not landscape_active else WIDTH
                         maxw = page_w - LM - RM
-                        maxh = page_h - TM - BM - 40 * mm
+                        # 表格横向时给底部 caption/note 留出空间；图按原逻辑扣 40mm
+                        reserve = 40 * mm
+                        maxh = page_h - TM - BM - reserve
                         scale = min(maxw / iw, maxh / ih, 1.0)
                         w = iw * scale; h = ih * scale
                         story.append(Image(str(ip), width=w, height=h))
@@ -251,10 +259,14 @@ def build(json_in, out_pdf, label=""):
                     story.append(Paragraph(cz, st["cap_zh"]))
                 if ce:
                     story.append(Paragraph(ce, st["cap_en"]))
-            if nz:
-                story.append(Paragraph(nz, st["cap_zh"]))
-            elif ne:
-                story.append(Paragraph(ne, st["cap_en"]))
+            # 表注/图注（note）沉到页面底部：用分隔线 + 小字，与正文/表格区分开
+            if nz or ne:
+                story.append(Spacer(1, 4))
+                story.append(HRFlowable(width="100%", thickness=0.5, color=colors.HexColor("#999999")))
+                if nz:
+                    story.append(Paragraph(nz, st["note"]))
+                if ne:
+                    story.append(Paragraph(ne, st["note"]))
             story.append(Spacer(1, 6))
         # fn_index / 其他：跳过
 
