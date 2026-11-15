@@ -138,7 +138,11 @@ def main():
                     item["note_en"] = p["para"]["text"]
                     consumed.add(p["idx"])
                     break
-            items.append({**item, "sort": (pno, rect.y0)})
+            # 排序跟着 MinerU 原始块序号走（规则 44），不再按 y。
+            # 旧 blocks/regions 没有 seq 时退回 10000+y，等价于原来的行为，保证向后兼容。
+            rseq = r.get("seq")
+            items.append({**item,
+                          "sort": (pno, rseq if rseq is not None else 10000 + rect.y0)})
 
         for p in paragraphs:
             if p["kind"] != "prose" or p["idx"] in consumed:
@@ -156,7 +160,9 @@ def main():
                 "id": f"p{pno}-{p['idx']}",
                 "kind": kind, "pages": [pno],
                 "en": txt, "zh": "",
-                "size": para["size"], "sort": (pno, para["y"]),
+                "size": para["size"],
+                "sort": (pno, para["seq"] if para.get("seq") is not None
+                         else 10000 + para["y"]),
             }
             # 极短且落在表格/图片纵向范围内 → 多半是跨页表格边界漏出的单元格文字。
             # 标为 table_leak 并从正文流剔除（否则会冒出一个孤立的 "school" 段），

@@ -229,7 +229,10 @@ def main():
         paras, regions = [], []
         seen_rects = []
 
-        for blk in pinfo.get("para_blocks") or []:
+        # seq = MinerU 原始块序号：双栏页的正确读序是「左栏自上而下 → 右栏自上而下」，
+        # 与 y 坐标无关。必须一路带到 assemble.py，否则按 (page, y) 排序会左右栏交错
+        # （规则 44：Jia 2017 首见，Lie 2016 Springer 双栏再次复现）。
+        for seq, blk in enumerate(pinfo.get("para_blocks") or []):
             btype = (blk.get("type") or "").lower()
             bbox = blk.get("bbox") or []
             if len(bbox) != 4:
@@ -279,7 +282,7 @@ def main():
                             im.save(path)
                         except Exception as e:
                             print(f"    [WARN] 横放表 {name} 旋转失败: {e}", file=sys.stderr)
-                entry = {"kind": kind, "file": path.name,
+                entry = {"kind": kind, "file": path.name, "seq": seq,
                          "rect": [round(v, 1) for v in crop_rect], "dpi": args.dpi}
                 if cap_en:
                     entry["caption_en"] = cap_en
@@ -316,6 +319,7 @@ def main():
                 "rect_top": round(rect.y0, 1),
                 "rect_bottom": round(rect.y1, 1),
                 "bold": btype == "title",
+                "seq": seq,
                 "n_lines": len(blk.get("lines") or []),
                 "mineru_type": btype,
             })

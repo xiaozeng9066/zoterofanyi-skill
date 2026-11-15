@@ -82,7 +82,7 @@ tag 不重复 / README 同源 / 公开模式隐私）一项不过就不提交。
 
 | 关 | 谁负责 | 判据 |
 |---|---|---|
-| 黄金集回归 | `regression_suite.py` | 15 案例全 PASS；有 PASS 变 FAIL 不得合并 |
+| 黄金集回归 | `regression_suite.py` | 公开合成 `fixtures/` 15 案例 + 本机全强度 `fixtures_full/` 16 案例，均全 PASS；有 PASS 变 FAIL 不得合并 |
 | 术语统一 | `term_audit.py` + `term_exceptions.json` | 缺失术语为 0 |
 | 脚注/引用交叉核对 | `qa.py` + `build_fn_index.py` | 数值只对纯数字标记 |
 | 翻译记忆回流 | `build_memory.py` | 审校纠正 → 下篇提示词（81 词级 + 9 整句） |

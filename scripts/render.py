@@ -104,11 +104,19 @@ def render(data, basedir=None):
     # —— 头部：溯源信息（正式版可裁剪）——
     label = esc(m.get("doc_kind_label") or "中英对照全文")
     parts.append(f'<div class="meta"><h1>{label} · 生成信息</h1>')
+    # 头部溯源字段全部允许缺失：不同篇目的 glossary_meta.json 未必写全，
+    # 早期版本直接 m['title_en'] 会 KeyError 让整条 HTML 路线崩掉、静默回退
+    # reportlab（版式更差）。规则 76：渲染器对可选 meta 只能降级，不能崩。
+    def mv(k):
+        return esc(str(m.get(k) or ""))
+    pgs = m.get("pages_in_sample")
+    pages_note = ("共 %d 页（%s–%s）" % (len(pgs), pgs[0], pgs[-1])
+                  if isinstance(pgs, (list, tuple)) and pgs else mv("pages_in_sample"))
     parts.append(
-        f"原文：{esc(m['title_en'])}（{esc(m['author_year'])}）<br>"
-        f"译名：{esc(m['title_zh'])}<br>"
-        f"Zotero 条目：{esc(m['item_key'])} ／ 附件：{esc(m['attachment_key'])} ／ 本样本覆盖 {('共 %d 页（%s–%s）' % (len(m['pages_in_sample']), m['pages_in_sample'][0], m['pages_in_sample'][-1]) if isinstance(m.get('pages_in_sample'), (list, tuple)) else esc(m.get('pages_in_sample')))}<br>"
-        f"翻译：{esc(m['translator'])} ｜ 术语表：{esc(m['glossary_version'])} ｜ 版式：{esc(m['layout'])}"
+        f"原文：{mv('title_en')}（{mv('author_year')}）<br>"
+        f"译名：{mv('title_zh')}<br>"
+        f"Zotero 条目：{mv('item_key')} ／ 附件：{mv('attachment_key')} ／ 本样本覆盖 {pages_note}<br>"
+        f"翻译：{mv('translator')} ｜ 术语表：{mv('glossary_version')} ｜ 版式：{mv('layout')}"
     )
     if data.get("glossary") and m.get("print_glossary", True):
         parts.append('<table><tr><td colspan="2"><b>术语表（节选）</b></td></tr>')

@@ -24,12 +24,12 @@ Local API 写授权流程（官方 v3/local_api）：
       ③ POST /users/0/items/<key>/file?upload=<uploadKey> + If-Match → 204
 
 用法：
-  python scripts/zotero_api.py cli search "school context"
-  python scripts/zotero_api.py cli item <KEY>
-  python scripts/zotero_api.py cli attach <KEY> "<pdf路径>" --title "中英对照" [--replace]
-  python scripts/zotero_api.py cli note <KEY> --title "翻译项目备注" --text-file note.md
-  python scripts/zotero_api.py cli status           # 探测 Local API / sqlite / bridge 可用性
-  python scripts/zotero_api.py cli authorize        # 手动触发一次写授权（Always Allow）
+  python scripts/zotero_api.py search "school context"
+  python scripts/zotero_api.py item <KEY>
+  python scripts/zotero_api.py attach <KEY> "<pdf路径>" --title "中英对照" [--replace]
+  python scripts/zotero_api.py note <KEY> --title "翻译项目备注" --text-file note.md
+  python scripts/zotero_api.py status           # 探测 Local API / sqlite / bridge 可用性
+  python scripts/zotero_api.py authorize        # 手动触发一次写授权（Always Allow）
 """
 import argparse
 import hashlib
@@ -321,24 +321,53 @@ def attach_file(item_key, file_path, filename=None, title=None, replace=False):
             "  B) 彻底退出 Zotero，再重跑本命令（走 sqlite 直写）。" % e)
 
 
+def _first_success_key(obj):
+    """Zotero 10 Local API 的批量写响应是 {"successful": {"0": {"key": ...}}}，
+    而 Web API/旧版是 {"successful": [{"key": ...}]} 或直接是数组。
+    早期只按列表取 [0]，遇到字典形态就抛「解析新附件 key 失败」——
+    实际上附件 item 已经建好了，重跑又会建一个空壳，造成重复附件。
+    """
+    succ = None
+    if isinstance(obj, dict):
+        succ = obj.get("successful") or obj.get("success")
+        if succ is None and obj.get("key"):
+            return obj["key"]
+    elif isinstance(obj, list):
+        succ = obj
+    if isinstance(succ, dict):
+        for k in sorted(succ, key=lambda x: int(x) if str(x).isdigit() else 0):
+            if isinstance(succ[k], dict) and succ[k].get("key"):
+                return succ[k]["key"]
+    elif isinstance(succ, list):
+        for it in succ:
+            if isinstance(it, dict) and it.get("key"):
+                return it["key"]
+    return None
+
+
 def _attach_via_local_api(item_key, file_path, filename, title, replace):
     md5 = hashlib.md5(open(file_path, "rb").read()).hexdigest()
     fsize = os.path.getsize(file_path)
     mtime = int(os.path.getmtime(file_path) * 1000)
     sid, key = _authorize()
 
-    # 定位目标附件（替换）或决定新建
+    # 定位目标附件（替换 / 空壳续传）或决定新建
     target_key, old_md5 = None, None
-    if replace:
-        try:
-            _, children = _get_item_local(item_key)
-            for c in children:
-                cd = c.get("data", {})
-                if cd.get("itemType") == "attachment" and cd.get("filename") == filename:
+    try:
+        _, children = _get_item_local(item_key)
+        for c in children:
+            cd = c.get("data", {})
+            if cd.get("itemType") == "attachment" and cd.get("filename") == filename:
+                if replace:
                     target_key, old_md5 = cd.get("key"), cd.get("md5")
-                    break
-        except ZoteroError:
-            pass
+                elif not cd.get("md5"):
+                    # 上次建了 attachment item 但上传没走完（例如响应解析失败）：
+                    # 复用这个空壳继续上传，避免再建一个同名空附件。
+                    target_key = cd.get("key")
+                break
+    except ZoteroError:
+        pass
+    replacing = bool(replace and target_key and old_md5)
 
     attach_key = target_key
     if not target_key:
@@ -355,14 +384,10 @@ def _attach_via_local_api(item_key, file_path, filename, title, replace):
         if status not in (200, 204):
             raise ZoteroError("建附件失败 HTTP %d：%s" % (status, raw[:300]))
         try:
-            obj = json.loads(raw.decode("utf-8"))
-            if isinstance(obj, dict) and obj.get("successful"):
-                attach_key = obj["successful"][0]["key"]
-            elif isinstance(obj, list):
-                attach_key = obj[0]["key"]
-            else:
-                attach_key = obj["key"]
+            attach_key = _first_success_key(json.loads(raw.decode("utf-8")))
         except Exception:
+            attach_key = None
+        if not attach_key:
             raise ZoteroError("解析新附件 key 失败：%s" % raw[:300])
 
     # 阶段①：POST /file 拿 uploadKey（参数在 form body，不是 query string，否则 Zotero 10 返回裸 500）
@@ -370,7 +395,7 @@ def _attach_via_local_api(item_key, file_path, filename, title, replace):
     form1 = _up.urlencode({"md5": md5, "filename": filename, "filesize": fsize,
                            "mtime": mtime}).encode("utf-8")
     hdr1 = {"Zotero-Server-ID": sid, "Zotero-API-Key": key,
-            "If-Match" if target_key else "If-None-Match": old_md5 or "*",
+            "If-Match" if replacing else "If-None-Match": old_md5 if replacing else "*",
             "Content-Type": "application/x-www-form-urlencoded"}
     status, hdrs, raw = _http("POST", "users/0/items/%s/file" % attach_key,
                               body=form1, headers=hdr1)
@@ -403,14 +428,14 @@ def _attach_via_local_api(item_key, file_path, filename, title, replace):
     # 阶段③：登记 uploadKey（upload 参数同样放 form body）
     form3 = _up.urlencode({"upload": auth["uploadKey"]}).encode("utf-8")
     hdr3 = {"Zotero-Server-ID": sid, "Zotero-API-Key": key,
-            "If-Match" if target_key else "If-None-Match": old_md5 or "*",
+            "If-Match" if replacing else "If-None-Match": old_md5 if replacing else "*",
             "Content-Type": "application/x-www-form-urlencoded"}
     status, hdrs, raw = _http("POST", "users/0/items/%s/file" % attach_key,
                               body=form3, headers=hdr3)
     if status not in (200, 204):
         raise ZoteroError("阶段③登记失败 HTTP %d：%s" % (status, raw[:300]))
     return {"ok": True, "via": "local-api", "attachment_key": attach_key,
-            "parent": item_key, "title": title or filename, "replaced": bool(target_key)}
+            "parent": item_key, "title": title or filename, "replaced": replacing}
 
 
 def _attach_via_sqlite(item_key, file_path, filename, title):
@@ -468,17 +493,27 @@ def create_note(item_key, title, text):
     """建笔记：Local API 优先，sqlite 兜底。"""
     if local_api_status()["ok"]:
         sid, key = _authorize()
-        note_html = _wrap_note(_md_to_html(text))
-        body = [{"itemType": "note", "parentItem": item_key,
-                 "note": note_html, "title": title or ""}]
+        # Zotero 10 Local API 的 note 类型**没有 title 字段**：传了会返回 HTTP 200
+        # 但 body 里是 failed: "'extra' is not a valid field for type 'note'"，
+        # 早期只看状态码就返回 ok:true，笔记其实一条都没建。笔记标题由正文首行决定，
+        # 故把 title 作为第一行 # 标题并进 markdown（已有标题时不重复添加）。
+        md = text or ""
+        if title and not md.lstrip().startswith("# "):
+            md = "# %s\n\n%s" % (title, md)
+        note_html = _wrap_note(_md_to_html(md))
+        body = [{"itemType": "note", "parentItem": item_key, "note": note_html}]
         status, hdrs, raw = _local_write("POST", "users/0/items", sid, key, body=body)
         if status not in (200, 204):
             raise ZoteroError("建笔记失败 HTTP %d：%s" % (status, raw[:300]))
         try:
             obj = json.loads(raw.decode("utf-8"))
-            nk = obj["successful"][0]["key"] if isinstance(obj, dict) else obj[0]["key"]
         except Exception:
-            nk = None
+            obj = {}
+        failed = obj.get("failed") if isinstance(obj, dict) else None
+        if failed:
+            raise ZoteroError("建笔记被 Zotero 拒绝：%s"
+                              % json.dumps(failed, ensure_ascii=False)[:300])
+        nk = _first_success_key(obj)
         return {"ok": True, "via": "local-api", "note_key": nk, "parent": item_key,
                 "title": title}
     try:

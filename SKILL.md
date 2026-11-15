@@ -177,10 +177,11 @@ $MIDDLE = (Get-ChildItem "$W\work\mineru" -Recurse -Filter "*_middle.json" | Sel
 
 # 9) 挂回 Zotero（**Zotero 开着也能写**，首选官方 Local API，规则 74）
 #    首选命令行（scripts/zotero_api.py，标准库零依赖，与 MCP 无关）：
-#      $PY "$S\scripts\zotero_api.py" cli status                    # 探测 Local API / sqlite / bridge 可用性
-#      $PY "$S\scripts\zotero_api.py" cli attach <条目key> <pdf> --title <显示名> [--replace]
-#      $PY "$S\scripts\zotero_api.py" cli note <条目key> --title <标题> --text-file <备注.md>
-#      $PY "$S\scripts\zotero_api.py" cli item <条目key> / search <关键词>   # 回读验证
+#      $PY "$S\zotero_api.py" status                    # 探测 Local API / sqlite / bridge 可用性
+#      $PY "$S\zotero_api.py" attach <条目key> <pdf> --title <显示名> [--replace]
+#      $PY "$S\zotero_api.py" note <条目key> --title <标题> --text-file <备注.md>
+#      $PY "$S\zotero_api.py" item <条目key> / search <关键词>   # 回读验证
+#    注意：子命令直接跟脚本名，**没有 cli 层**；$S 已是 scripts 目录，不要再拼一层 scripts\。
 #    写入路径（自动降级，无需人工干预）：
 #      a) **Zotero 10 官方 Local API**（首选，Zotero 开着也能写）：localhost:23119/api/，
 #         需用户先到 Zotero「设置 → 高级」勾选「允许其他应用与本机 Zotero 通信」，
@@ -425,7 +426,7 @@ Dimitrov 2026（19 页 / 11 图 3 表；翻译 11 块 + 审校 12 块；共 353 
 - **已弃用：DSH Zotero Bridge 插件**（`scripts/zotero_bridge/`）。原因：Zotero 7+ 会**主动禁用**
   「自己出现在 profile/extensions 目录里」的插件（必须 UI「Install Add-on From File」），
   且 `strict_max_version` 一越界（升 Zotero 10）就被 `appDisabled`。Local API 是官方路线，不再维护插件。
-- **自检**：`$PY "$S\scripts\zotero_api.py" cli status` → `local_api.ok:true` 才走 Local API；
+- **自检**：`$PY "$S\zotero_api.py" status` → `local_api.ok:true` 才走 Local API；
   `cli item <条目key>` 回读附件/笔记确认挂好。
 
 ## 2026-10 新增：Nature / IJO 双栏版式的 6 类特例（Jia 2017，7 页，实测）
@@ -778,7 +779,7 @@ Dimitrov 2026（19 页 / 11 图 3 表；翻译 11 块 + 审校 12 块；共 353 
     - 落地：`scripts/zotero_api.py`（标准库零依赖）三路自动降级 —— Zotero 10 官方 Local API
       （读无认证、写经 `POST /api/local/authorize` 授权，三阶段上传替换附件）→ sqlite 直写
       （Zotero 未运行）→ 旧 Bridge（仅历史兼容）。Local API 是官方维护，升级不破。
-    - 关键口径：挂回不通先 `cli status` 看 `local_api.ok`；`Local API is not enabled` = 用户
+    - 关键口径：挂回不通先跑 `status` 子命令看 `local_api.ok`；`Local API is not enabled` = 用户
       没勾「设置 → 高级 → 允许其他应用通信」，不是网络/权限问题。写请求必须带
       `Zotero-Server-ID`（先 `GET /api/` 读）否则 `428`；一次性授权 key 收到 `401` 要重新 authorize。
       三阶段上传的 `md5/filename/filesize/mtime` 与 `upload` 参数必须放 **form body**
@@ -809,6 +810,38 @@ Dimitrov 2026（19 页 / 11 图 3 表；翻译 11 块 + 审校 12 块；共 353 
       正是「换台电脑就崩」的直接根因（v2.22 已把 `mineru_python` 的硬编码改成配置优先）。
     - 禁止：把门禁结论写死在文档里当常量（每台机器不同）；新增门禁脚本不接进 `gate.py`，
       让它继续散落在「记得才跑」的灰色地带。
+
+## 2026-11 新增：Springer 双栏系统综述 + Zotero 10 写回三连坑（v2.24，Lie 2016，22 页，实测）
+
+76. **双栏读序必须由 MinerU 原始块序号贯通到装配，不能按 (page, y) 排序**（规则 44 的真正落地）：
+    - 起因：Lie 2016（Springer 双栏）首轮骨架 15/22 页出现页内 id 序号回退——摘要 Results 段被排到
+      Introduction 之后，Methods 与 Results 左右栏交错。根因是 `assemble.py` 里正文与图表的 sort
+      都取 `(pno, y)`，双栏必然左右交错；而 `blocks.json` 的 paragraph 顺序本来就是正确读序。
+    - 落地：`extract_mineru.py` 遍历 `para_blocks` 时用 `enumerate` 给每个 paragraph / region 写 `seq`
+      （MinerU 顺序 = 左栏自上而下 → 右栏自上而下）；`assemble.py` 的 sort 改为 `(pno, seq)`，
+      旧产物缺 `seq` 时退回 `10000+y`（等价于旧行为，向后兼容）。跨页续句合并发生在排序之前，
+      排序改对后终稿顺序与合并时一致，还额外暴露出一处真实的跨页断句（H-续句 BLOCK）。
+    - 判据：检查骨架每页数字 id 是否单调递增；不递增就是读序错，**不能进翻译**（译完再修要连译文一起改）。
+    - 禁止：靠 y 坐标或 x 阈值猜栏；改 seq 不跑黄金集。
+77. **同页多图被合并成一个 image block 时按内嵌图 bbox 拆分；图注尾部会被误判成脚注**：
+    - 本篇 p3 有两张图（PRISMA 流程图 + 听阈图），MinerU 只输出一个 figure 区域（rect 覆盖整条右栏），
+      图 2 图注尾部「percentile, 3–6 kHz, better ear by age…」被 `extract_footnotes.py` 判成「脚注 90」
+      （marker 其实是「90 percentile」里的数字）。
+    - 做法：`page.get_images(full=True)` + `get_image_rects(xref)` 取每张图真实 bbox 分别裁图；
+      从原生文本层按图注区 clip 重建完整 caption；删除误判脚注块，同步 `regions.json` 保证回归计数一致。
+    - 判据：某页 `blocks.json.images` 数 > 该页 figure 区域数，或 figure caption 编号不连续 → 必查。
+78. **渲染器与外部 API 的「可选字段」必须兜底，写回成功一律以回读为准**（本轮三连坑）：
+    - `render.py` 头部直接索引 `m['title_en']`，meta 没写全就 KeyError，整条 HTML 路线崩掉并静默回退
+      reportlab（版式更差）→ 溯源字段统一 `m.get(k) or ""`。
+    - Zotero 10 Local API 批量写响应是 `{"successful": {"0": {"key": ...}}}`（**字典**不是数组），
+      旧代码 `obj["successful"][0]` 抛「解析新附件 key 失败」，但 attachment item 其实已建好 →
+      统一 `_first_success_key()` 兼容 dict/list，并让「同名无 md5 的空壳附件」续传而非重复新建。
+    - note 类型**没有 title 字段**：传了返回 HTTP 200，body 却是
+      `failed: "'extra' is not a valid field for type 'note'"`，只看状态码就是「假成功」（笔记一条没建）。
+      标题写进正文首行 `# ...`，并显式检查 `failed`。
+    - 判据：写回后 `item <key>` / `/children` 回读到附件文件非空、笔记正文含标题，才算挂好；`ok:true` 不算。
+    - 附带修尺子：`rules_check.py` 的 `NEG_EN` 加 `(?!-[a-z])`，避免行末断字 `Nor-wegian` 里的
+      "Nor" 被当否定词报假 FAIL（本篇 p1-10）。
 
 ## 成本控制（Dimitrov 2026 实测：会话口径 ¥2.44/篇，19 页）
 

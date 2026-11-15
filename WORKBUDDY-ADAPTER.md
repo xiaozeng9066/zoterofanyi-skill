@@ -224,11 +224,11 @@ MIDDLE=$(find "$W/work/mineru" -name "*_middle.json" | head -1)
 | git 仓库 | `~/.workbuddy/skills/zoterofanyi/` 本身（独立仓库，分支 `main`）。**origin = `https://github.com/xiaozeng9066/zoterofanyi-skill.git`（public，公开主库，账户内唯一远端）**；旧归档库 `.../zoterofanyi-skill-archive` 已于 2026-11-14 删除（本机 bundle 留底） |
 | 云端同步 | `sync_now.py --start / --end / --status`；开工拉、收尾 `iterate_commit.py` 自动推并回读远端 HEAD。GitHub 连接器为 App，建仓 403 / 新仓库 404，**不影响 git 同步**（规则 58） |
 | 网络路由 | `local_config.json` 的 `network` 段：**代理优先**（`mode=proxy-required`，代理内重试 3 次），代理彻底不通才 `fallback=warn` 应急降级并告警；`--route direct` 仅诊断（规则 61） |
-| 工程规则编号 | 1–75，下一条 **76**（v2.21 新增 75「门禁统一入口 gate.py + 总纲 GATES.md」） |
+| 工程规则编号 | 1–78，下一条 **79**（v2.24 新增 76–78：双栏读序 seq、同页多图拆分、可选字段兜底与写回回读） |
 | 首页 / README | `README.md`：定位、产出形态、快速开始、仓库结构、脚本速查、质量体系、迭代机制、隐私边界、常见坑。顶部状态表由 `scripts/check_readme.py` 与真实来源对账，`iterate_commit.py` 强制校验（规则 64）；数字用 `--fix` 刷，文字人工改 |
-| 黄金测试集 | 15 案例，**15/15 PASS**（真源本机实测）；脱敏副本亦 **15/15 PASS + 残留 0 处**（`public_sanitize.py --verify`） |
+| 黄金测试集 | 公开合成 `fixtures/` 15 案例 **15/15 PASS**；本机全强度 `fixtures_full/` 16 案例 **16/16 PASS**（gitignored，v2.24 新增 lie2016_full / lie2016_extract） |
 | 公开版 | `scripts/public_sanitize.py` 生成 `dist/public`（已 gitignore）；发布指南 `PUBLIC-RELEASE.md`、第 9 节。**私有主库仍是唯一真源，全强度 fixtures 不降级** |
-| 翻译记忆 | 76 条词级纠正 + 9 条整句模式（含 3EHBMRQR / E2HE73V2 / RB7BRXRA 等篇审校纠正） |
+| 翻译记忆 | 82 条词级纠正 + 9 条整句模式（v2.24 回流 UEU766HN「会使 → 与」） |
 | 术语例外 | `templates/term_exceptions.json`（`translog` 待核实） |
 | 已处理篇目 | 16+ 篇（见工作区 `zotero-translate/<key>/` 与 `CHANGELOG.md`） |
 

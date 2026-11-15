@@ -39,8 +39,10 @@ HEDGE_ZH = ["不应", "不宜", "不可", "可能", "或许", "也许", "似乎"
             "通常", "常常", "一般", "典型", "往往", "大体", "多半", "一定程度", "部分", "大约", "初步", "粗略", "建议", "显著性", "趋势", "容易", "易于", "普遍", "可", "能", "宜", "或许"]
 # 这些不是否定：whether or not / Yes or No / yes-no
 NEG_NOISE = re.compile(r"whether\s+or\s+not|\bYes\s+or\s+No\b|yes/no", re.I)
+# 行末断字（Nor-wegian / not-withstanding 之类）里的 "Nor" / "not" 不是否定词：
+# \b 在连字符处成立，会被误判成「原文有否定」并报假 FAIL（Lie 2016 p1-10 实测）。
 NEG_EN = re.compile(r"\b(not|no(?!\.)|never|none|neither|nor|without|fail(s|ed)? to|cannot"
-                    r"|isn't|aren't|doesn't|don't|didn't|is not|are not)\b", re.I)
+                    r"|isn't|aren't|doesn't|don't|didn't|is not|are not)\b(?!-[a-z])", re.I)
 NEG_ZH = ["不", "无", "未", "没有", "并非", "缺乏", "无法", "不能", "未发现", "没有证据", "排除", "除外", "剔除",
           "以免", "避免", "不致", "不曾", "尚未", "免于", "无须", "不必", "拒绝", "否"]
 COMP_EN = re.compile(r"\b(more|less|higher|lower|greater|smaller|stronger|weaker|larger|fewer"

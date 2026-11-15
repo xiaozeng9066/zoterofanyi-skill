@@ -8,10 +8,10 @@
 <!-- readme-state:start -->
 | 项 | 当前值 |
 |---|---|
-| 当前版本 | `v2.23` |
-| 工程规则 | 1–**75** 条（下一条 76） |
+| 当前版本 | `v2.24` |
+| 工程规则 | 1–**78** 条（下一条 79） |
 | 黄金测试集 | **15** 个案例，15 PASS |
-| 翻译记忆 | **81** 条词级纠正 + **9** 条整句模式 |
+| 翻译记忆 | **82** 条词级纠正 + **9** 条整句模式 |
 | 公开主库 | `github.com/xiaozeng9066/zoterofanyi-skill` |
 <!-- readme-state:end -->
 
@@ -25,7 +25,7 @@
 ## 这是什么 / 不是什么
 
 **是**：一个自迭代的 workBuddy / DSH skill，包含完整流水线（抽取 → 翻译 → 校验 → 渲染 → 挂回）、
-75 条实测工程规则、15 个黄金回归案例、翻译记忆库，以及「每篇论文都要让 skill 变强一点」的迭代协议。
+78 条实测工程规则、15 个黄金回归案例（本机全强度另 16 案例）、翻译记忆库，以及「每篇论文都要让 skill 变强一点」的迭代协议。
 **不是**：不是 pip 包，不是通用 PDF 翻译器。它假设论文有文本层、以英文撰写、需保留版面语义。
 
 ## 怎么工作（一张图）
@@ -110,7 +110,7 @@ python scripts/regression_suite.py --fixtures fixtures   # 应为 15/15 PASS
 
 | 路径 | 内容 |
 |---|---|
-| `SKILL.md` | 主文档：何时用、交付约定、流水线、**75 条工程规则**、各版式特例 |
+| `SKILL.md` | 主文档：何时用、交付约定、流水线、**78 条工程规则**、各版式特例 |
 | `WORKBUDDY-ADAPTER.md` | WorkBuddy 工具映射、Bash 版流水线、git / 同步 / 公开库专章 |
 | `CHANGELOG.md` | 一行一版；**版本号 = git tag 名** |
 | `PORTABILITY.md` | 换电脑：git 同步 + `local_config.json` 本地化 |
@@ -121,7 +121,7 @@ python scripts/regression_suite.py --fixtures fixtures   # 应为 15/15 PASS
 | `MIGRATION.md` | 从 DSH 迁移到 WorkBuddy 的记录 |
 | `scripts/` | 50+ 脚本：抽取、翻译、校验、渲染、迭代、同步、脱敏；**一键编排 `pipeline.py`**、PDF 回退 `build_pdf_reportlab.py`、`zotero_api.py`（挂回，Zotero 10 Local API） |
 | `templates/` | 术语表模板、术语例外表、原文问题表、用量日志模板 |
-| `tm/` | 翻译记忆：`term_fixes`（81 条词级纠正）、`error_patterns`（9 条整句模式） |
+| `tm/` | 翻译记忆：`term_fixes`（82 条词级纠正）、`error_patterns`（9 条整句模式） |
 | `fixtures/` | 15 个黄金案例（合成数据，可公开） |
 | `fixtures_full/` | 本机全强度真实快照，**gitignored、不入库** |
 
@@ -146,7 +146,7 @@ python scripts/regression_suite.py --fixtures fixtures   # 应为 15/15 PASS
 
 1. **两道 preflight 门禁**：开译前 `--stage skeleton`、交付前 `--stage full`，都必须 0 BLOCK。
 2. **15 个黄金案例**：改任何 `scripts/` 后必须全绿；有案例由 PASS 变 FAIL 不得合并。
-3. **75 条工程规则**：每条都是踩坑换来的，写在 `SKILL.md`，编号只增不改。
+3. **78 条工程规则**：每条都是踩坑换来的，写在 `SKILL.md`，编号只增不改。
 4. **翻译记忆**：`tm/term_fixes.json` 记录词级纠正（如 `suggest` 不译「表明」），
    `tm/error_patterns.json` 记录整句模式，`build_memory.py` 增量回流。
 

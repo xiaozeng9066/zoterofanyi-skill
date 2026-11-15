@@ -8,6 +8,37 @@
 > v2.2–v2.7 的完整迭代史只存于本机离线备份
 > `~/.workbuddy/backups/zoterofanyi-skill-archive-20261114.bundle`（原归档库已于 2026-11-14 删除）。
 
+## v2.24 — 2026-11-15 · Lie 2016 系统综述 + 双栏读序 / 渲染 / Zotero 写回修复（规则 76–78）
+
+**篇目**：Lie et al. (2016) *Occupational noise exposure and hearing: a systematic review*,
+Int Arch Occup Environ Health 89:351–372，22 页，Springer 双栏，Zotero 条目 `UEU766HN`。
+
+**四指标实测**
+
+| 指标 | 值 |
+|---|---|
+| 准确 | 全量二遍审校 11 块 / 208 条，7 处修订（high 0 / medium 7 / 拒绝 0）；终检 qa FAIL 0 / WARN 6，rules FAIL 1（p1-11「似」未入限定词表，独立审校判定为词表误报，未掩盖） |
+| 少错 | Gate 1、Gate 2 均 0 BLOCK / 0 WARN；`regression_check.py` 6 项全 OK；黄金集公开 15/15、本机全强度 16/16 PASS；公开隐私门禁 PASS |
+| 速度 | MinerU GPU 22 页约 25 s；prepare 3 次（含 2 次修补复跑）；翻译 9 块约 10 min；审校 11 块约 24 min（含 1 次子代理超时重派 15 min）；成品 59 页 / 2.86 MB |
+| 成本 | 产物估算 ≈ 54.2k 输入 / 17.3k 输出 tokens（**非账单口径**）；实际费用未记录 |
+
+**改动（改文件才算迭代）**
+
+- `extract_mineru.py` / `assemble.py`：用 `enumerate` 贯通 MinerU 原始块序号 `seq`，排序改 `(pno, seq)`，修双栏按 y 排序导致的读序左右交错；缺 seq 的旧产物退回 `10000+y` 保持兼容（规则 76）。
+- `render.py`：头部溯源字段全部 `m.get(k) or ""`，修 `KeyError: 'title_en'` 让 HTML 路线不再静默回退 reportlab（规则 78）。
+- `zotero_api.py`：新增 `_first_success_key()` 兼容 Local API 的 dict 形态 `successful`；同名无 md5 的空壳附件续传而非重复新建；note 去掉非法 `title` 字段、标题写进正文首行并显式检查 `failed`（规则 78）。docstring 里 6 处过时 `cli` 写法同步。
+- `rules_check.py`：`NEG_EN` 加 `(?!-[a-z])`，行末断字 `Nor-wegian` 不再误判为否定（规则 78 附带）。
+- `SKILL.md`：新增规则 76–78；修正 4 处 `cli` / `$S\scripts\` 过时命令；`WORKBUDDY-ADAPTER.md`、`GATES.md`、`README.md` 的规则编号 / 案例数 / 记忆数同步。
+- `tm/term_fixes.json`：增量回流 1 条词级纠正（81 → 82，「会使 → 与」，关联表述不写致使因果）；`error_patterns` 保持 9 条，未写入真实整句。
+- `fixtures_full/`：新增 `lie2016_full` + `lie2016_extract`（真实全强度快照，**gitignored**）；公开 `fixtures/` 仍为 15 个合成案例，`public_sanitize.py --gate` PASS。
+- 工作区产物：`reports/source_issues.md`、`usage.md`、`项目备注.md`；Zotero 挂回双语附件 `9UDV2JPJ`（2.86 MB）+ 笔记 `T9XXHMRG`，回读 `VERIFY_OK`。
+
+**学到**
+
+1. 规则 44 写在文档里 ≠ 落地：`assemble.py` 一直按 y 排序，直到第 17 篇双栏综述才暴露。判据要变成「骨架页内 id 单调递增」的机器检查，不能靠人记得。
+2. 外部 API 的「HTTP 200 + ok:true」不等于成功：Zotero 把失败写在 body 的 `failed` 里，note 的非法字段甚至只回 200；写回必须回读 `/children` 才算数。
+3. 公开主库下真实案例只能进 `fixtures_full/`（gitignored），公开 `fixtures/` 计数不变——这不是「案例数没增长」，两套口径必须在 CHANGELOG / 适配层写清，否则下一个人会误判迭代没做。
+
 ## v2.23 — 2026-11-15 · README 正文补同步（换机流程 / bootstrap 描述）
 
 **背景**
