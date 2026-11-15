@@ -52,9 +52,11 @@ def rich(t: str) -> str:
     if not t:
         return ""
     t = _html_escape(t)
-    t = SUP_RE.sub(lambda m: "<sup>%s</sup>" % m.group(1), t)
+    # reportlab 的 Paragraph 原生上标/下标标签是 <super>/<sub>，不是 <sup>/<sub>；
+    # 用 <sup> 会被当未知标签忽略、上标数字退化成普通基线数字（v2.16 前 Lim&Meer 姓名即如此）。
+    t = SUP_RE.sub(lambda m: "<super>%s</super>" % m.group(1), t)
     t = SUB_RE.sub(lambda m: "<sub>%s</sub>" % m.group(1), t)
-    t = LONE_SUP_RE.sub("<sup>", t)
+    t = LONE_SUP_RE.sub("<super>", t)
     return t
 
 
@@ -178,13 +180,18 @@ def build(json_in, out_pdf, label=""):
                         want_landscape = (iw / ih) > wide_ratio
                     except Exception:
                         want_landscape = False
-            if want_landscape and not landscape_active:
+            # 每个图/表块都显式声明自己该落在哪个方向的页上（NextPageTemplate 是
+            # 一次性的，只在「方向切换」时设会漏掉「连续多个横向块溢出到下一页」的情况
+            # ——溢出的下一页会回落到默认竖版，导致宽表被塞进竖版、左右裁切。v2.16 前表 6/7 即如此）。
+            if want_landscape:
                 story.append(NextPageTemplate("landscape"))
-                story.append(PageBreak())
+                if not landscape_active:
+                    story.append(PageBreak())
                 landscape_active = True
-            elif not want_landscape and landscape_active:
+            else:
                 story.append(NextPageTemplate("portrait"))
-                story.append(PageBreak())
+                if landscape_active:
+                    story.append(PageBreak())
                 landscape_active = False
 
         if kind == "title":

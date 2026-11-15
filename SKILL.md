@@ -726,9 +726,15 @@ Dimitrov 2026（19 页 / 11 图 3 表；翻译 11 块 + 审校 12 块；共 353 
 70. **人名上标必须渲染成真正的上标，宽表/宽图自动转横向页**（v2.16）：
     - 起因：用户反馈成品「人名上标不对」——reportlab 回退路线的 `norm()` 不处理 `^{x}`，
       作者名 `Flamme^{1}` 被原样打成字面 `^{1}`；宽表用 Image 硬塞 A4 竖版被压小。
-    - 落地：`build_pdf_reportlab.py` 新增 `rich()`（先 HTML 转义，再 `^{x}`→`<sup>`、`_{x}`→`<sub>`），
+    - 落地：`build_pdf_reportlab.py` 新增 `rich()`（先 HTML 转义，再 `^{x}`→`<super>`、`_{x}`→`<sub>`），
       正文/标题/图注/表题全走 `rich()`；宽高比 >1.25 的图/表自动切横向页（reportlab 双
       PageTemplate 竖+横；HTML 路线 `@page landscape` + `figure.landscape` + 纯标准库读 PNG 头）。
+    - **关键踩坑（v2.17 修正）**：① reportlab 的 Paragraph 原生上标/下标标签是 `<super>`/`<sub>`，
+      **不是** `<sup>`——用 `<sup>` 会被当未知标签忽略、上标数字退化成普通基线数字
+      （v2.16 首版 `rich()` 用 `<sup>`，姓名 `Lim1` 数字没 rise）。② 横向切换不能只在
+      「方向变化」时设 `NextPageTemplate`（它是一次性的）：连续多个宽表会溢出到下一页，
+      溢出的页回落到默认竖版，导致宽表被塞进竖版、左右裁切。必须**每个图/表块都显式
+      声明 `NextPageTemplate`**，方向变化时才加 `PageBreak`。
     - 禁止：只修一条路线（HTML/reportlab）——两条都必须支持，否则回退时又露馅。
 71. **GPU/CUDA 探测是「发挥机器性能」的第一步，必须可观测**（v2.16）：
     - 起因：用户质疑「没发挥电脑性能」，自查发现 40+ 脚本**零处**探测显卡。
