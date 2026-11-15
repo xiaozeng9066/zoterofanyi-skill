@@ -416,6 +416,7 @@ def main() -> int:
         },
         "network": network,
         "overrides": old.get("overrides", {}) if isinstance(old.get("overrides"), dict) else {},
+        "llm": old.get("llm", {}) if isinstance(old.get("llm"), dict) else {"model": None},
         "warnings": warnings,
     }
 

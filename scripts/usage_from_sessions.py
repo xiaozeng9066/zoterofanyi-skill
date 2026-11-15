@@ -41,6 +41,21 @@ PRICES = {
 }
 
 
+def _cfg_model() -> str | None:
+    """优先从 local_config.json 读「当前模型」（detect_env 探测 / 用户配置），换模型不靠硬编码。"""
+    try:
+        import json
+        cfg_path = Path(__file__).resolve().parent.parent / "local_config.json"
+        if cfg_path.is_file():
+            cfg = json.loads(cfg_path.read_text(encoding="utf-8"))
+            m = (cfg.get("llm") or {}).get("model") or cfg.get("model")
+            if m:
+                return m
+    except Exception:
+        pass
+    return None
+
+
 def read_lines(p):
     if zstandard is None:
         return subprocess.run(["zstd", "-dc", str(p)], capture_output=True) \
@@ -119,7 +134,8 @@ def main():
     ap.add_argument("--pages", type=int, default=0)
     ap.add_argument("--out", default="")
     ap.add_argument("--json", default="")
-    ap.add_argument("--model", default="deepseek-flash")
+    ap.add_argument("--model", default=None,
+                    help="实际用的模型名（默认读 local_config.json 的 llm.model，再回退 deepseek-flash）")
     ap.add_argument("--since", default="", help="只统计此时间之后（ISO，如 2026-10-18T10:00）")
     ap.add_argument("--until", default="", help="只统计此时间之前（交付时刻，排除交付后的返工/答疑）")
     ap.add_argument("--peak", default="")
@@ -151,7 +167,9 @@ def main():
                 ids.add(s["id"]); changed = True
     picked = [s for s in sessions if s["id"] in ids]
 
-    price = dict(PRICES.get(a.model, PRICES["deepseek-flash"]))
+    # 模型名解析顺序：命令行 > local_config.json > deepseek-flash 兜底
+    model = a.model or _cfg_model() or "deepseek-flash"
+    price = dict(PRICES.get(model, PRICES["deepseek-flash"]))
     if a.peak:
         price["peak"] = tuple(float(x) for x in a.peak.split("/"))
     if a.offpeak:
@@ -206,7 +224,7 @@ def main():
     md = ["# 用量与费用 · 会话实测\n",
           "> %d 个会话（编排 %d + 子代理 %d）；价格 `%s` 空闲 %s、高峰 %s 元每百万 tokens；"
           "高峰/空闲按每次调用时间戳判定。\n" % (
-              len(picked), len(orch), len(subs), a.model,
+              len(picked), len(orch), len(subs), model,
               "/".join(map(str, price["offpeak"])), "/".join(map(str, price["peak"]))),
           "| 口径 | 编排（主会话） | 子代理 | 合计 |", "|---|---|---|---|",
           "| 模型调用 | %d | %d | **%d** |" % (agg(orch, "calls"), agg(subs, "calls"), agg(per, "calls")),
@@ -239,7 +257,7 @@ def main():
     if a.json:
         Path(a.json).parent.mkdir(parents=True, exist_ok=True)
         Path(a.json).write_text(json.dumps({
-            "model": a.model, "price": price,
+            "model": model, "price": price,
             "total": {"sessions": len(picked), "calls": agg(per, "calls"), "in": tin, "cache": tcache,
                       "out": tout, "prompt": prompt, "cache_hit_pct": round(hit, 1),
                       "cost": round(cost, 4), "cost_peak": round(cost_peak, 4),

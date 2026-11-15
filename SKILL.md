@@ -193,12 +193,16 @@ $MIDDLE = (Get-ChildItem "$W\work\mineru" -Recurse -Filter "*_middle.json" | Sel
 #    注：`python` 一律用 DSH 自带解释器
 #      %USERPROFILE%\.dsh\dsh-runtimes\dsh-primary-runtime\dependencies\python\python.exe
 
-# 10) 用量与费用（每篇必做，会话口径＝账单口径）
+# 10) 用量与费用（每篇必做；跨客户端统一用 usage_report.py，DSH 环境才用 usage_from_sessions.py）
+#    ★ 换模型/换客户端后：模型名必须显式传 --model，不得留空；实际费用留 --actual-cost，勿估算冒充
+& $PY "$S\usage_report.py" "$W\work" --pages <页数> --model "<实际模型名，如 deepseek-flash / hunyuan / hy4>" `
+    --out "$W\reports\usage_artifacts.md"
+#    → 产物字符折算估算（英文 3.2 / 中文 1.6 字符每 token），只含翻译+审校，不含编排；标注「非账单口径」
+#    → 仅 DSH 环境（有 ~/.dsh/sessions）才用下面这条拿「会话口径＝账单口径」：
 & $PY "$S\usage_from_sessions.py" --workdir $W --item-key <Zotero条目key> --pages <页数> `
-    --model deepseek-flash [--until <交付时刻 ISO>] `
+    --model <实际模型名> [--until <交付时刻 ISO>] `
     --out "$W\reports\usage.md" --json "$W\reports\usage.json"
 #    → 从 ~/.dsh/sessions 里把「主会话 + 其全部子代理会话」的 usage 加起来
-& $PY "$S\usage_report.py" "$W\work" --pages <页数> --out "$W\reports\usage_artifacts.md"
 ```
 
 ## 必须遵守的工程规则（全部是实测踩坑换来的）
@@ -303,9 +307,13 @@ $PY = "$HOME\.dsh\runtimes\zb-translate\venv\Scripts\python.exe"
 - `regression_check.py` 全绿；任何 FAIL 必须处理或**明确列入验收报告**；
 - **Zotero 回读门禁**：`mcp__zotero__verify_item(item_key=...)` 必须 `ok: true`
   （每个附件都有 `title` 字段、storage 文件存在且非空、笔记有标题与正文）；
-- **交付时必须在对话里直接报本篇的 token 与费用**（用户 2026-10-18 明确要求，不等追问）：
-  跑 `usage_from_sessions.py --session <主会话id> --pages <页数>`，报「调用次数 / prompt（命中率）/ 输出 / 费用 / 单页成本」，
-  并说明哪些是一次性开销（修流水线、搭基础设施）；
+- **交付时必须在对话里直接报本篇的用时 / token / 费用**（用户 2026-10-18 明确要求，不等追问）：
+  **统一用 `usage_report.py` 口径**（跨客户端通用），跑
+  `usage_report.py "$W/work" --pages <页数> --model "<实际模型名>" --out "$W/reports/usage_artifacts.md"`，
+  报「翻译+审校 token（估算） / 各段耗时 / **模型名** / 可能费用」，
+  并**明确标注这是产物估算、非账单口径**（规则 72）；实际费用只能由用户提供 `--actual-cost`，
+  拿不到就写「未记录」，**不得用估算冒充**。`usage_from_sessions.py` 依赖 DSH 会话日志，
+  **只在 DSH 环境可用**，WorkBuddy/换客户端后一律走 `usage_report.py`。
 - 交付时明确区分：**已自动检查 / 已人工核对 / 仍待核对**；
 - **未做句级校对、未逐页目视时，不得称"定稿"或"已核验"**；
 - 段落级校对 ≠ 句级校对。
@@ -842,6 +850,31 @@ Dimitrov 2026（19 页 / 11 图 3 表；翻译 11 块 + 审校 12 块；共 353 
     - 判据：写回后 `item <key>` / `/children` 回读到附件文件非空、笔记正文含标题，才算挂好；`ok:true` 不算。
     - 附带修尺子：`rules_check.py` 的 `NEG_EN` 加 `(?!-[a-z])`，避免行末断字 `Nor-wegian` 里的
       "Nor" 被当否定词报假 FAIL（本篇 p1-10）。
+
+## 2026-11 新增：换模型 / 换客户端的普适性（v2.25，Hy4 模型回归测试实测）
+
+79. **「换模型 / 换客户端」是回归测试，不是「应该能跑」的假设；四个隐式依赖必须显式化**：
+    - 起因：用户用 Hy4 模型在新对话框跑「Occupational Noise Exposure and Hearing」（Lie 2016），
+      反馈「成品效果差（似乎没弄完）、速度慢、token 多、没报用时/token/费用」。实测该篇**其实跑完了**
+      （59 页、209 条翻译齐全、门禁 0 BLOCK、Zotero 挂回成功），「没弄完」是**版式降级 + 没报用量**
+      造成的观感。真根因是四个「换环境后失效的隐式假设」：
+    - ① **「主动报用量」断链**：`SKILL.md` 交付门槛还写「跑 `usage_from_sessions.py` 报费用」，
+      但它依赖 DSH 会话日志，WorkBuddy/换客户端后跑不通；适配层说改用 `usage_report.py`，
+      两处文档打架 → 「对话里主动报 token+费用」这条硬门槛没人执行。
+      落地：交付门槛统一到 `usage_report.py` 口径（跨客户端通用），`--model` 必须显式传。
+    - ② **模型名从没被记录**：`usage_from_sessions.py` 硬编码 `--model default=deepseek-flash`、
+      SKILL.md 示例写死 `deepseek-flash`，换模型后模型栏空、费用单价算不出。
+      落地：`usage_from_sessions.py`/`usage_report.py` 的模型名一律「命令行 > `local_config.json`
+      的 `llm.model` > 兜底」，缺省时 `usage_report.py` 显式 `[WARN]` 而非静默「未记录」。
+    - ③ **渲染降级静默**：HTML 路线 `KeyError` 崩掉后静默回退 reportlab（版式更差），报告里没醒目标注。
+      落地：`pipeline.py` 记 `render_route`（`html` / `reportlab(html-failed)` / `reportlab(no-edge)`），
+      写进 metrics 并在 FINISH 打印醒目标记「[!] 成品为 reportlab 降级版式」。
+    - ④ **子代理超时盲重派**：换模型后超时/推理行为变了，审校 24 分钟含一次超时重派 15 分钟。
+      落地：模型名进 `local_config.json`，后续可按模型配超时/档位（本轮先把模型名打通，超时策略待实测）。
+    - 判据：交付时看 `usage_artifacts.md` 的「模型」栏是否有值、FINISH 输出是否有 `render_route`；
+      模型栏「未记录」或渲染路线缺失 = 没走完这条规则。
+    - 禁止：换模型/换客户端后仍用 `deepseek-flash` 的写死默认值；把「回退 reportlab」当正常路线
+      不标注；交付时因「跑不通 usage_from_sessions」就干脆不报用量。
 
 ## 成本控制（Dimitrov 2026 实测：会话口径 ¥2.44/篇，19 页）
 

@@ -502,13 +502,16 @@ def cmd_finish(a):
         out_pdf.unlink()
     label = a.label or ""
 
-    # 首选 HTML->PDF（版式最好）；本机 Edge 常被沙箱打死，失败自动回退 reportlab
+    # 首选 HTML->PDF（版式最好）；本机 Edge 常被沙箱打死，失败自动回退 reportlab。
+    # render_route 记录实际走的路线：HTML 版式最好；回退 reportlab 属「版式降级」，必须显式标注
+    render_route = "html" if not a.no_edge else "reportlab(no-edge)"
     ok_pdf = False
     if not a.no_edge:
         sh([PY, HERE / "build_pdf.py", final, out_pdf, label], tail=4, needed=False)
         ok_pdf = out_pdf.is_file() and out_pdf.stat().st_size > 10240
         if not ok_pdf:
-            print("  [!] HTML 渲染路线没产出有效 PDF（Edge/Chromium 不可用），回退 reportlab")
+            render_route = "reportlab(html-failed)"
+            print("  [!] HTML 渲染路线没产出有效 PDF（Edge/Chromium 不可用），回退 reportlab —— 版式降级")
 
     if not ok_pdf:
         rp = find_reportlab_python()
@@ -536,6 +539,9 @@ def cmd_finish(a):
 
     print("\n" + "=" * 62)
     print("FINISH 完成 — Gate 2 通过（0 BLOCK）")
+    print("  %-14s: %s" % ("render_route", render_route))
+    if render_route.startswith("reportlab"):
+        print("  [!] 注意：成品为 reportlab 降级版式（HTML 路线不可用），上标/横向等细节可能不如 HTML 版")
     for k in ("path", "bytes", "pages", "cjk_chars", "has_text_layer"):
         if k in info:
             print("  %-14s: %s" % (k, info[k]))
@@ -553,6 +559,7 @@ def cmd_finish(a):
         data.update(m.estimate_tokens(data))
         data["pdf_pages"] = info.get("pages", data.get("pdf_pages", 0))
         data["cjk_chars"] = info.get("cjk_chars", data.get("cjk_chars", 0))
+        data["render_route"] = render_route
         m.record(W, data)
         print("\n  metrics       : 已记录（%d 块 / %d 译条 / %d 修订 / 门禁 %d-%d / %d 图）"
               % (data.get("blocks", 0), data.get("translated_items", 0),

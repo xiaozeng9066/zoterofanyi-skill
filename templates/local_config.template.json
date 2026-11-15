@@ -41,5 +41,9 @@
     "_comment": "由 detect_env.py 探测写入（规则 61）：国内环境代理是前置条件，mode=proxy-required 时代理内重试 3 次、绝不常态化绕代理；fallback=warn 允许代理彻底不通时应急降级并告警，block 则直接阻断。github_direct_* 仅诊断。force 可手工设 proxy/direct（direct 只用于诊断）。"
   },
   "overrides": {},
+  "llm": {
+    "model": null,
+    "_comment": "当前翻译/审校实际用的模型名（如 deepseek-flash / hunyuan-turbo / hy4）。换模型时改这里，usage_report.py / usage_from_sessions.py 会自动读取，费用单价按模型折算，不再硬编码 deepseek-flash（规则 79）。"
+  },
   "warnings": []
 }

@@ -11,11 +11,23 @@
   usage_report.py <工作目录> [--price-in 2 --price-out 8] [--actual-cost 8.5]
                   [--model "模型名"] [--pages 46] [--out reports/usage.md]
 """
-import argparse, glob, json, os
+import argparse, glob, json, os, sys
 from datetime import datetime
 from pathlib import Path
 
 EN_CPT, ZH_CPT = 3.2, 1.6      # 字符/token 的保守折算
+
+
+def _cfg_model() -> str | None:
+    """从 local_config.json 读「当前模型」（换模型不靠硬编码/人记得填）。"""
+    try:
+        cfg_path = Path(__file__).resolve().parent.parent / "local_config.json"
+        if cfg_path.is_file():
+            cfg = json.loads(cfg_path.read_text(encoding="utf-8"))
+            return (cfg.get("llm") or {}).get("model") or cfg.get("model")
+    except Exception:
+        pass
+    return None
 
 
 def classify(workdir):
@@ -69,7 +81,7 @@ def main():
     ap.add_argument("--price-in", type=float, default=None, help="输入单价（元/百万 token）")
     ap.add_argument("--price-out", type=float, default=None, help="输出单价（元/百万 token）")
     ap.add_argument("--actual-cost", type=float, default=None, help="实际费用（元，从服务商用量页抄）")
-    ap.add_argument("--model", default="未记录")
+    ap.add_argument("--model", default=None, help="实际用的模型名（默认读 local_config.json）")
     ap.add_argument("--pages", type=int, default=0)
     ap.add_argument("--out", default="")
     ap.add_argument("--mineru-minutes", type=float, default=None)
@@ -111,6 +123,14 @@ def main():
     m_trans = a.trans_minutes if a.trans_minutes is not None else span_minutes_files(cls["trans"])
     m_review = a.review_minutes if a.review_minutes is not None else span_minutes_files(cls["fix"])
 
+    # 模型名解析顺序：命令行 > local_config.json；都没有则显式告警（换模型/换客户端后不能静默「未记录」）
+    model = a.model or _cfg_model()
+    if not model:
+        print("[WARN] 未提供 --model 且 local_config.json 里没有 llm.model，模型栏记为「未记录」。"
+              "换模型/换客户端后务必显式传 --model 或在 local_config.json 里配 llm.model，"
+              "否则费用单价无法按模型折算。", file=sys.stderr)
+        model = "未记录"
+
     cost = None
     if a.price_in is not None and a.price_out is not None:
         cost = t_in / 1e6 * a.price_in + t_out / 1e6 * a.price_out
@@ -124,7 +144,7 @@ def main():
         ("耗时 MinerU", f"{m_mineru:.0f} 分钟" + ("（人工提供）" if a.mineru_minutes is not None else "（按产物时间推断）") if m_mineru else "未记录"),
         ("耗时 翻译", f"{m_trans:.1f} 分钟" + ("（人工提供）" if a.trans_minutes is not None else "（按产物时间推断，若目录含多轮会偏大）") if m_trans else "未记录"),
         ("耗时 审校", f"{m_review:.1f} 分钟" + ("（人工提供）" if a.review_minutes is not None else "（按产物时间推断）") if m_review else "未记录"),
-        ("模型", a.model),
+        ("模型", model),
         ("按单价估算成本", (f"¥{cost:.2f}（¥{a.price_in}/¥{a.price_out} 每百万 token）"
                         if cost is not None else "未提供单价")),
         ("**实际费用**", (f"**¥{a.actual_cost:.2f}**" if a.actual_cost is not None

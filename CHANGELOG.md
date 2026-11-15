@@ -8,6 +8,39 @@
 > v2.2–v2.7 的完整迭代史只存于本机离线备份
 > `~/.workbuddy/backups/zoterofanyi-skill-archive-20261114.bundle`（原归档库已于 2026-11-14 删除）。
 
+## v2.25 — 2026-11-15 · 换模型/换客户端普适性：主动报用量 + 模型名进配置 + 渲染降级显式化（规则 79）
+
+**背景**
+
+用户用 Hy4 模型在新对话框跑「Occupational Noise Exposure and Hearing」（Lie 2016），反馈
+「成品效果差（似乎没弄完）、速度慢、token 多、没报用时/token/费用」。诊断：该篇**其实跑完了**
+（59 页、209 条翻译齐全、门禁 0 BLOCK、Zotero 挂回成功），「没弄完」是版式降级 + 没报用量造成的观感。
+
+**四个隐式依赖（换环境后失效）**
+
+1. 「主动报用量」断链：交付门槛写跑 `usage_from_sessions.py`，但它依赖 DSH 会话日志，WorkBuddy 跑不通；
+   适配层说改用 `usage_report.py`，两处打架 → 「对话里主动报 token+费用」没人执行。
+2. 模型名从没被记录：`--model` 硬编码 `deepseek-flash`，换 Hy4 后模型栏空、费用单价算不出。
+3. 渲染降级静默：HTML 路线 `KeyError: 'title_en'` 崩掉回退 reportlab（该 bug v2.24 才修，本次跑在修复前），
+   报告没醒目标注「版式降级」。
+4. 子代理超时盲重派：审校 24 分钟含一次超时重派 15 分钟。
+
+**改动**
+
+- `SKILL.md`：交付门槛统一到 `usage_report.py` 口径（跨客户端通用），`--model` 必须显式传；
+  流水线第 10 步的 `--model deepseek-flash` 示例改为 `<实际模型名>`；新增规则 79。
+- `scripts/usage_from_sessions.py` / `usage_report.py`：模型名解析顺序统一为
+  「命令行 > `local_config.json` 的 `llm.model` > 兜底」；`usage_report.py` 缺模型时显式 `[WARN]`
+  而非静默「未记录」。
+- `scripts/pipeline.py`：`finish` 记 `render_route`（`html` / `reportlab(html-failed)` /
+  `reportlab(no-edge)`），写进 metrics，FINISH 打印醒目标记「[!] 成品为 reportlab 降级版式」。
+
+**指标**：无翻译质量改动，纯可移植性/可观测性加固。黄金集 15/15 PASS；实测 `usage_report.py`
+缺模型时正确 `[WARN]`、带 `--model hunyuan-turbo` 时模型栏正确。
+
+**学到**：换模型/换客户端是回归测试，不是「应该能跑」的假设。隐式假设（模型名、会话日志路径、
+渲染路线、子代理超时）不显式化，换环境就静默失效——而「静默」比「报错」更糟，因为没人发现。
+
 ## v2.24 — 2026-11-15 · Lie 2016 系统综述 + 双栏读序 / 渲染 / Zotero 写回修复（规则 76–78）
 
 **篇目**：Lie et al. (2016) *Occupational noise exposure and hearing: a systematic review*,
