@@ -33,11 +33,55 @@ import os
 import re
 import subprocess
 import sys
+import time
 from pathlib import Path
 
 HERE = Path(__file__).resolve().parent
 SKILL = HERE.parent
 PY = sys.executable
+
+# ── 阶段计时：把真实 wall-clock 写进 <work>/reports/timings.json（度量闭环用）──
+def _timings_path(work):
+    return Path(work) / "reports" / "timings.json"
+
+
+def _read_timings(work):
+    p = _timings_path(work)
+    if p.is_file():
+        try:
+            return json.loads(p.read_text(encoding="utf-8"))
+        except Exception:
+            return {}
+    return {}
+
+
+def _write_timings(work, data):
+    p = _timings_path(work)
+    p.parent.mkdir(parents=True, exist_ok=True)
+    p.write_text(json.dumps(data, ensure_ascii=False, indent=2), encoding="utf-8")
+
+
+class StageTimer:
+    """在某个 pipeline 命令内记录各子阶段耗时，退出时累积进 timings.json。"""
+
+    def __init__(self, work, stage):
+        self.work = Path(work)
+        self.stage = stage  # prepare / check / finish
+        self.start = time.time()
+        self.marks = []
+
+    def mark(self, label):
+        self.marks.append((label, time.time() - self.start))
+
+    def done(self):
+        dur = time.time() - self.start
+        data = _read_timings(self.work)
+        # 阶段累计（同名阶段取最近一次）
+        data[self.stage] = round(dur, 2)
+        data[self.stage + "_detail"] = [[l, round(t, 2)] for l, t in self.marks]
+        data["_updated_at"] = time.strftime("%Y-%m-%d %H:%M:%S")
+        _write_timings(self.work, data)
+        return dur
 
 
 # ────────────────────────────── 基础设施 ──────────────────────────────
@@ -150,6 +194,7 @@ def cmd_prepare(a):
     work, reports = W / "work", W / "reports"
     work.mkdir(parents=True, exist_ok=True)
     reports.mkdir(parents=True, exist_ok=True)
+    timer = StageTimer(W, "prepare")
     pdf = Path(a.pdf).resolve() if a.pdf else W / "source.pdf"
     meta = Path(a.meta).resolve() if a.meta else work / "glossary_meta.json"
     if not pdf.is_file():
@@ -236,6 +281,7 @@ def cmd_prepare(a):
     print("  分块          : %d 个（%s）" % (len(chunk_files), ", ".join(p.name for p in chunk_files)))
     print("  术语表        : %d 条" % ngl)
     print("  翻译指南      : %s" % gpath)
+    timer.done()
     print("\n  下一步：并行派 %d 个子代理，每个读" % len(chunk_files))
     print("    %s/chunk_NNN.json  +  TRANSLATION_GUIDE.md" % chunks)
     print("    写出 %s/trans_NNN.json  （{\"items\":[{\"id\":..,\"zh\":..}]}）" % chunks)
@@ -336,6 +382,7 @@ def cmd_check(a):
     W = Path(a.work).resolve()
     work, reports = W / "work", W / "reports"
     reports.mkdir(parents=True, exist_ok=True)
+    timer = StageTimer(W, "check")
     skel_fn = work / "skeleton_fn.json"
     chunks = work / "chunks"
     trans = sorted(chunks.glob("trans_*.json"))
@@ -390,6 +437,7 @@ def cmd_check(a):
     print("\n  下一步：并行派 %d 个审校子代理，各读 review_NNN.json + CHECK_FINDINGS.md" % len(rfiles))
     print("    写出 %s/fixes/fix_NNN.json" % work)
     print("  全部写完后运行：python pipeline.py finish --work %s" % W)
+    timer.done()
     print("=" * 62)
     return 0
 
@@ -398,6 +446,7 @@ def cmd_check(a):
 def cmd_finish(a):
     W = Path(a.work).resolve()
     work, reports = W / "work", W / "reports"
+    timer = StageTimer(W, "finish")
     bil = work / "bilingual.json"
     fixed = work / "bilingual_fixed.json"
     final = work / "bilingual_final.json"
@@ -431,6 +480,7 @@ def cmd_finish(a):
 
     if a.skip_pdf:
         print("\n[4/5] 跳过 PDF（--skip-pdf）")
+        timer.done()
         return 0
 
     print("\n[4/5] 生成双语 PDF")
@@ -479,6 +529,35 @@ def cmd_finish(a):
             print("  %-14s: %s" % (k, info[k]))
     if "verify_error" in info:
         print("  verify        : %s" % info["verify_error"])
+
+    # 度量埋点：采集本篇硬指标落盘（跨篇/跨版本对比用）
+    timer.done()
+    try:
+        import importlib.util
+        spec = importlib.util.spec_from_file_location("metrics", HERE / "metrics.py")
+        m = importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(m)
+        data = m.collect(W, skill_version=m._git_version(), label=label)
+        data.update(m.estimate_tokens(data))
+        data["pdf_pages"] = info.get("pages", data.get("pdf_pages", 0))
+        data["cjk_chars"] = info.get("cjk_chars", data.get("cjk_chars", 0))
+        m.record(W, data)
+        print("\n  metrics       : 已记录（%d 块 / %d 译条 / %d 修订 / 门禁 %d-%d / %d 图）"
+              % (data.get("blocks", 0), data.get("translated_items", 0),
+                 data.get("fixes", 0), data.get("gate1_block", 0), data.get("gate2_block", 0),
+                 data.get("images", 0)))
+        # 自动迭代审计：本篇指标 vs 历史，产出趋势 + 迭代建议（保证「自动迭代」）
+        try:
+            spec2 = importlib.util.spec_from_file_location("iterate_audit", HERE / "iterate_audit.py")
+            ia = importlib.util.module_from_spec(spec2)
+            spec2.loader.exec_module(ia)
+            audit_path = ia.audit(W, W.parent)
+            print("  iterate_audit : %s" % audit_path)
+        except Exception as e:
+            print("  iterate_audit : 失败（%s）" % e)
+    except Exception as e:
+        print("\n  metrics       : 采集失败（%s）" % e)
+
     print("\n  下一步：挂回 Zotero（zotero_mcp.py cli attach / note / verify），然后走迭代协议。")
     print("=" * 62)
     return 0

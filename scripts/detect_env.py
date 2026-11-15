@@ -227,6 +227,94 @@ def git_remote_url() -> str | None:
         return None
 
 
+def probe_gpu():
+    """探测 GPU / CUDA 能力，用于决定 MinerU 走 GPU 还是 CPU（发挥本机最大性能）。
+
+    零第三方依赖、逐级容错：没有 nvidia-smi / torch 也不报错，能测到什么写什么。
+    返回 dict，键：vendor（nvidia/amd/intel/unknown）、gpus（显卡名列表）、
+    cuda_available（torch 是否能用 CUDA）、device（推荐 device）。
+    """
+    gpu = {"vendor": "unknown", "gpus": [], "cuda_available": False, "device": "cpu", "note": ""}
+
+    # 1) NVIDIA：nvidia-smi 最直接
+    nvidia_smi = shutil.which("nvidia-smi")
+    if nvidia_smi:
+        try:
+            proc = subprocess.run([nvidia_smi, "--query-gpu=name,memory.total",
+                                   "--format=csv,noheader"],
+                                  capture_output=True, text=True, timeout=8)
+            if proc.returncode == 0:
+                gpu["vendor"] = "nvidia"
+                for line in proc.stdout.strip().splitlines():
+                    gpu["gpus"].append(line.strip())
+        except (OSError, subprocess.TimeoutExpired):
+            pass
+
+    # 2) CUDA 可用性：优先 torch（MinerU 后端），其次 nvcc
+    cuda = False
+    for candidate in _torch_candidates():
+        if not candidate:
+            continue
+        try:
+            proc = subprocess.run(
+                [candidate, "-c", "import torch; print(torch.cuda.is_available()); print(torch.cuda.get_device_name(0) if torch.cuda.is_available() else '')"],
+                capture_output=True, text=True, timeout=20)
+            if proc.returncode == 0:
+                lines = proc.stdout.strip().splitlines()
+                cuda = lines[0].strip() == "True" if lines else False
+                if cuda:
+                    gpu["cuda_available"] = True
+                    if len(lines) > 1 and lines[1].strip() and not gpu["gpus"]:
+                        gpu["gpus"].append("CUDA: " + lines[1].strip())
+                break
+        except (OSError, subprocess.TimeoutExpired):
+            continue
+
+    # 3) AMD/Intel（Windows 上 wmic 已弃用，尽力而为）
+    if gpu["vendor"] == "unknown" and os.name == "nt":
+        for tool, args in [("wmic", ["path", "win32_VideoController", "get", "name"])]:
+            exe = shutil.which(tool)
+            if exe:
+                try:
+                    proc = subprocess.run([exe] + args, capture_output=True, text=True, timeout=8)
+                    if proc.returncode == 0:
+                        names = [l.strip() for l in proc.stdout.strip().splitlines()
+                                 if l.strip() and "name" not in l.lower()]
+                        gpu["gpus"] = names[:4]
+                        if names:
+                            gpu["vendor"] = "amd" if "radeon" in " ".join(names).lower() \
+                                else ("intel" if "intel" in " ".join(names).lower() else "unknown")
+                except (OSError, subprocess.TimeoutExpired):
+                    pass
+
+    # 4) 推荐 device + 说明
+    if gpu["cuda_available"] or (gpu["vendor"] == "nvidia" and gpu["gpus"]):
+        gpu["device"] = "cuda"
+        gpu["note"] = "检测到 NVIDIA GPU，MinerU 应走 GPU（--device cuda），否则浪费算力。"
+    elif gpu["gpus"]:
+        gpu["note"] = "检测到 GPU 但无法确认 CUDA 可用；MinerU 可先试 GPU，失败回退 CPU。"
+    else:
+        gpu["note"] = "未检测到可用 GPU；MinerU 将走 CPU（慢，但可用）。"
+
+    return gpu
+
+
+def _torch_candidates():
+    """返回可能装了 torch 的解释器列表（用于测 CUDA 可用性）。"""
+    cands = [
+        os.environ.get("ZF_MINERU_PY"), os.environ.get("MINERU_PY"),
+        Path.home() / ".dsh/runtimes/mineru/venv310" / VENV_PY,
+        Path.home() / ".workbuddy/runtimes/mineru/venv310" / VENV_PY,
+    ]
+    # 去重、只保留存在的
+    seen, out = set(), []
+    for c in cands:
+        if c and Path(str(c)).is_file() and str(c) not in seen:
+            seen.add(str(c))
+            out.append(str(c))
+    return out
+
+
 def main() -> int:
     ap = argparse.ArgumentParser(description="探测本机环境，生成 zoterofanyi 本机配置")
     ap.add_argument("--no-write", action="store_true", help="只探测，不写 local_config.json")
@@ -297,6 +385,11 @@ def main() -> int:
     remote = prev_sync.get("remote_url") or git_remote_url()
     network = probe_network(remote, old)
     warnings.extend(network.get("notes") or [])
+
+    gpu = probe_gpu()
+    if gpu["note"]:
+        warnings.append(gpu["note"])
+
     cfg = {
         "schema_version": 1,
         "generated_at": datetime.now().astimezone().isoformat(timespec="seconds"),
@@ -313,6 +406,7 @@ def main() -> int:
         "workspace": workspace,
         "runs_dir": runs_dir,
         "cloud_dirs": cloud_dirs,
+        "gpu": gpu,
         "sync": {
             "mode": prev_sync.get("mode", "git-remote"),
             "remote_name": prev_sync.get("remote_name", "origin"),
@@ -332,6 +426,11 @@ def main() -> int:
         for key in ("python", "mineru_python", "browser", "zotero_mcp", "workspace", "runs_dir"):
             print(f"  {'OK  ' if cfg.get(key) else 'MISS'} {key:<15} {cfg.get(key) or '(未配置)'}")
         print(f"  fitz: {'yes' if has_fitz else 'NO'}   云同步目录: {', '.join(cloud_dirs) or '无'}")
+        g = gpu
+        gpus = ", ".join(g["gpus"]) if g["gpus"] else "无"
+        print(f"  GPU: {g['vendor']} | device={g['device']} | cuda={g['cuda_available']} | {gpus}")
+        if g["note"]:
+            print(f"        -> {g['note']}")
         print(f"  git remote: {remote or '(未配置)'}")
         pstat = ("未设置" if network["github_proxy_ok"] is None
                  else ("OK" if network["github_proxy_ok"] else "FAIL（重试后会再试）"))

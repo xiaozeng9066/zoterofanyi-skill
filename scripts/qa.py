@@ -217,6 +217,98 @@ def check_block(b, glossary):
     return issues
 
 
+def _norm_for_overlap(text):
+    """为「脚注泄漏 / 重复」检测做激进归一：去掉空白、标点、上下标标记，
+    只保留字母数字与符号主干，让「−β n−1」与「−β_{n1}^{1}」这类写法差异也能对上。"""
+    t = canon(text or "")
+    t = re.sub(r"[_\^\{}\s]", "", t)  # 去掉 LaTeX 上下标外壳与空白
+    t = re.sub(r"[·,.;:!?，。；：！？、（）()\[\]“”\"'‘’—–\-]", "", t)
+    return t.lower()
+
+
+def _fn_fingerprint(fn_zh):
+    """从脚注中文里抽「数学/公式主干」当指纹。
+
+    脚注多为数学推导（如「β = −(n −1) < 0」），版面提取泄漏进正文时，
+    中文措辞（「所以/故」）可能被改写，但公式主干通常原样保留。
+    故用「含数学符号的最长连续串」作为匹配指纹，比整句子串更鲁棒。
+
+    关键收紧：片段必须**含数学运算符/希腊字母/上下标符号**
+    （= < > ≤ ≥ ± − β 等），否则像作者单位的邮编、邮箱这类纯字母数字串
+    会被误当公式指纹，导致大量误报（合成案例 p1-affiliations 即如此）。
+    """
+    t = _norm_for_overlap(fn_zh)
+    # 先找含「数学符号」的片段：至少出现一个 = / < / > / ± / − / 希腊字母
+    math_marker = re.compile(r"[=<>≤≥±−+*×÷βγλμσθαεδ]")
+    segs = re.findall(r"[0-9A-Za-zβγλμσθαεδ=<>≤≥±−+*×÷\.]{6,}", t)
+    segs = [s for s in segs if math_marker.search(s)]
+    if not segs:
+        return None
+    # 取最长的片段当指纹（越长越特异，越不易误报）
+    return max(segs, key=len)
+
+
+def check_document(blocks):
+    """文档级检测（单块 check_block 看不见的跨块问题）。
+
+    规则 68（v2.16）：脚注文字泄漏进正文 —— 版面提取偶尔把脚注正文并进正文段，
+    导致同一句话在「正文」与「脚注」里各出现一次。检测：任一脚注块的数学指纹
+    （公式主干）若原样出现在某个非脚注正文块里，即报 FAIL（重复/泄漏）。
+    """
+    issues = []
+    footnotes = [b for b in blocks if b.get("kind") == "footnote"]
+    paras = [b for b in blocks if b.get("kind") != "footnote"]
+    if footnotes and paras:
+        fn_fp = []
+        for b in footnotes:
+            fp = _fn_fingerprint(b.get("zh") or "")
+            if fp:
+                fn_fp.append((fp, b.get("id")))
+        for b in paras:
+            pz = _norm_for_overlap(b.get("zh") or "")
+            if len(pz) < 8:
+                continue
+            for fp, fid in fn_fp:
+                if fp in pz:
+                    issues.append({
+                        "id": b.get("id"), "kind": b.get("kind"),
+                        "issues": [("FAIL", f"脚注公式主干疑似泄漏进正文（与脚注块 {fid} 重复）")],
+                    })
+                    break
+    return issues
+
+
+def check_abbreviation_fullname(blocks, glossary):
+    """规则 69（v2.16）：缩写术语全称重复出现。
+
+    约定：缩写首次出现给全称，之后一律用缩写。检测：对 glossary 里「中文全称（缩写）」
+    形态的条目，统计中文全称（去掉括注后的主体）在本篇正文出现次数，>1 次即 WARN。
+    例：「身体质量指数（BMI）」若「身体质量指数」反复出现，说明没遵守「首译后缩写」约定。
+    """
+    issues = []
+    all_zh = "\n".join(canon(b.get("zh") or "") for b in blocks)
+    for pair in glossary:
+        if not isinstance(pair, (list, tuple)) or len(pair) != 2:
+            continue
+        term_en, term_zh = pair
+        # 只处理「全称（缩写）」或「全称(缩写)」形态
+        m = re.match(r"^(.+?)[（(]([A-Za-z][A-Za-z0-9]*)[）)]$", term_zh.strip())
+        if not m:
+            continue
+        full_cn, abbr = m.group(1), m.group(2)
+        if len(full_cn) < 3:
+            continue
+        # 全称出现次数（不把「身体质量指数（BMI）」这整个词条本身算进去）
+        cnt = all_zh.count(full_cn)
+        if cnt > 1:
+            issues.append({
+                "id": "_doc", "kind": "doc",
+                "issues": [("WARN",
+                            f"缩写术语全称重复出现 {cnt} 次：「{full_cn}（{abbr}）」应首次给全称、之后只用「{abbr}」")],
+            })
+    return issues
+
+
 def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("bilingual")
@@ -233,6 +325,15 @@ def main():
         n_fail += sum(1 for lvl, _ in issues if lvl == "FAIL")
         n_warn += sum(1 for lvl, _ in issues if lvl == "WARN")
         results.append({"id": b.get("id"), "kind": b.get("kind"), "issues": issues})
+
+    # 文档级检测（规则 68 / 69）
+    for doc_issue in check_document(blocks):
+        results.append(doc_issue)
+        n_fail += sum(1 for lvl, _ in doc_issue["issues"] if lvl == "FAIL")
+        n_warn += sum(1 for lvl, _ in doc_issue["issues"] if lvl == "WARN")
+    for abbr_issue in check_abbreviation_fullname(blocks, glossary):
+        results.append(abbr_issue)
+        n_warn += sum(1 for lvl, _ in abbr_issue["issues"] if lvl == "WARN")
 
     total = len(blocks)
     print(f"=== QA: {args.bilingual} ===")

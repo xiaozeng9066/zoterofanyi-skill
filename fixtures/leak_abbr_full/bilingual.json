@@ -1,0 +1,60 @@
+{
+  "meta": {
+    "title_zh": "脚注泄漏与缩写冗余检测用例（合成）"
+  },
+  "table_leaks": [],
+  "glossary": [
+    [
+      "body mass index (BMI)",
+      "身体质量指数（BMI）"
+    ],
+    [
+      "overweight",
+      "超重"
+    ]
+  ],
+  "blocks": [
+    {
+      "id": "p1-title",
+      "kind": "title",
+      "pages": [
+        1
+      ],
+      "en": "A Study of Peer BMI",
+      "zh": "一项关于同伴身体质量指数（BMI）的研究",
+      "size": 10
+    },
+    {
+      "id": "p1-para",
+      "kind": "para",
+      "pages": [
+        1
+      ],
+      "en": "Heavier peers increase body mass index (BMI) by 0.83 units.",
+      "zh": "体重更重的同伴会使身体质量指数增加 0.83 个单位。",
+      "size": 10
+    },
+    {
+      "id": "p2-para",
+      "kind": "para",
+      "pages": [
+        2
+      ],
+      "en": "This effect is not spurious. Because beta times n minus one is always one, beta equals negative n minus one, which is negative.",
+      "zh": "该效应并非虚假。表明因为 −β(n−1) 恒为 1，故 β = −(n −1) < 0。",
+      "size": 10
+    },
+    {
+      "id": "p2-fn1",
+      "kind": "footnote",
+      "pages": [
+        2
+      ],
+      "en": "Because beta times n minus one is always one, beta equals negative n minus one.",
+      "zh": "因为 −β(n−1) 恒等于 1，所以 β = −(n −1) < 0。",
+      "size": 10,
+      "marker": "1"
+    }
+  ],
+  "_synthetic": true
+}

@@ -12,13 +12,14 @@
 import argparse, json, re, sys
 from pathlib import Path
 
-from reportlab.lib.pagesizes import A4
+from reportlab.lib.pagesizes import A4, landscape
 from reportlab.lib.units import mm
 from reportlab.lib.enums import TA_CENTER, TA_LEFT, TA_JUSTIFY
 from reportlab.lib.styles import ParagraphStyle
 from reportlab.lib.colors import HexColor
 from reportlab.platypus import (SimpleDocTemplate, Paragraph, Spacer, Image,
-                                PageBreak, KeepTogether)
+                                PageBreak, KeepTogether, NextPageTemplate,
+                                PageTemplate, Frame)
 from reportlab.pdfbase import pdfmetrics
 from reportlab.pdfbase.cidfonts import UnicodeCIDFont
 
@@ -31,6 +32,31 @@ TM = 18 * mm
 BM = 16 * mm
 AVAIL = WIDTH - LM - RM
 
+# 上标/下标：数据里的 ^{1} / _{2} 在 reportlab 里用 <sup>/<sub> 迷你标签
+SUP_RE = re.compile(r"\^\{([^}]*)\}")
+SUB_RE = re.compile(r"_\{([^}]*)\}")
+# 孤立上标（作者/单位编号常见 "Flamme^1" 或 "Flamme ^{1}" 已由上覆盖），
+# 这里兜底处理 ^ 后跟单个非空白字符的写法（如 ^1 ^a ^†）
+LONE_SUP_RE = re.compile(r"\^(?=[^\s{])")
+
+
+def _html_escape(t: str) -> str:
+    return (t.replace("&", "&amp;").replace("<", "&lt;").replace(">", "&gt;"))
+
+
+def rich(t: str) -> str:
+    """转成 reportlab Paragraph 可用的富文本：先 HTML 转义，再把 ^{x}/_{x}/^x 转成上下标标签。
+
+    顺序：先转义（避免把真实 < > & 当标签），再替换学术上下标写法。
+    """
+    if not t:
+        return ""
+    t = _html_escape(t)
+    t = SUP_RE.sub(lambda m: "<sup>%s</sup>" % m.group(1), t)
+    t = SUB_RE.sub(lambda m: "<sub>%s</sub>" % m.group(1), t)
+    t = LONE_SUP_RE.sub("<sup>", t)
+    return t
+
 
 def norm(t: str) -> str:
     if not t:
@@ -40,6 +66,7 @@ def norm(t: str) -> str:
          .replace("’", "'").replace("‘", "'")
          .replace("“", '"').replace("”", '"')
          .replace(" ", " "))  # NBSP -> space
+    t = t.replace("｜", " | ").replace("—", "-")  # 全角竖线/破折号在 Helvetica 缺字形
     return t
 
 
@@ -64,7 +91,7 @@ def make_styles():
         "title_en": ParagraphStyle("title_en", fontName="Helvetica", fontSize=11,
                                    leading=15, alignment=TA_CENTER, spaceAfter=2,
                                    textColor=HexColor("#444")),
-        "meta": ParagraphStyle("meta", fontName="Helvetica", fontSize=8.5, leading=12,
+        "meta": ParagraphStyle("meta", fontName=CJK, fontSize=8.5, leading=12,
                                alignment=TA_CENTER, textColor=HexColor("#666")),
         "hr": Spacer(1, 6),
         "src": ParagraphStyle("src", fontName="Helvetica", fontSize=7.5, leading=9,
@@ -114,19 +141,23 @@ def build(json_in, out_pdf, label=""):
     story = []
 
     # ---- 标题页信息 ----
-    story.append(Paragraph(norm(meta.get("title_zh", "")), st["title_zh"]))
-    story.append(Paragraph(norm(meta.get("title_en", "")), st["title_en"]))
+    story.append(Paragraph(rich(norm(meta.get("title_zh", ""))), st["title_zh"]))
+    story.append(Paragraph(rich(norm(meta.get("title_en", ""))), st["title_en"]))
     story.append(Spacer(1, 3))
     auth = meta.get("author_year", "")
     jour = meta.get("journal", "")
     doi = meta.get("doi", "")
     meta_line = " · ".join(x for x in [auth, jour, (f"doi:{doi}" if doi else "")] if x)
-    story.append(Paragraph(norm(meta_line), st["meta"]))
+    story.append(Paragraph(rich(norm(meta_line)), st["meta"]))
     item = meta.get("item_key", "")
-    story.append(Paragraph(f"Zotero 条目 {item} ｜ 中英对照全文", st["meta"]))
+    story.append(Paragraph(f"Zotero 条目 {item} | 中英对照全文", st["meta"]))
     story.append(Spacer(1, 8))
 
     # ---- 正文 ----
+    # 宽表格/宽插图自动转横向：先判断图片宽高比，宽 >> 高（宽表）则整块切到横版页
+    wide_ratio = 1.25  # 宽/高 超过此值视为「横向更合适」的宽表/宽图
+    landscape_active = False
+
     for b in blocks:
         kind = b.get("kind")
         pages = b.get("pages") or []
@@ -134,21 +165,43 @@ def build(json_in, out_pdf, label=""):
         if sl:
             story.append(Paragraph(sl, st["src"]))
 
+        # 检测是否宽图/宽表，决定是否切横向
+        if kind in ("table", "figure"):
+            img = b.get("image", "")
+            want_landscape = False
+            if img:
+                ip = (workdir / img) if not Path(img).is_absolute() else Path(img)
+                if ip.exists():
+                    try:
+                        from reportlab.lib.utils import ImageReader
+                        iw, ih = ImageReader(str(ip)).getSize()
+                        want_landscape = (iw / ih) > wide_ratio
+                    except Exception:
+                        want_landscape = False
+            if want_landscape and not landscape_active:
+                story.append(NextPageTemplate("landscape"))
+                story.append(PageBreak())
+                landscape_active = True
+            elif not want_landscape and landscape_active:
+                story.append(NextPageTemplate("portrait"))
+                story.append(PageBreak())
+                landscape_active = False
+
         if kind == "title":
             # 标题已在顶部，正文里若再次出现则作为普通标题
-            en = norm(b.get("en", "")); zh = norm(b.get("zh", ""))
+            en = rich(norm(b.get("en", ""))); zh = rich(norm(b.get("zh", "")))
             if zh:
                 story.append(Paragraph(zh, st["h_cjk"]))
             if en and en != meta.get("title_en", ""):
                 story.append(Paragraph(en, st["h"]))
         elif kind == "heading":
-            en = norm(b.get("en", "")); zh = norm(b.get("zh", ""))
+            en = rich(norm(b.get("en", ""))); zh = rich(norm(b.get("zh", "")))
             if zh:
                 story.append(Paragraph(zh, st["h_cjk"]))
             if en:
                 story.append(Paragraph(en, st["h"]))
         elif kind == "para" and b.get("no_translate"):
-            en = norm(b.get("en", ""))
+            en = rich(norm(b.get("en", "")))
             if en:
                 for line in en.split("\n"):
                     line = line.strip()
@@ -156,13 +209,13 @@ def build(json_in, out_pdf, label=""):
                         story.append(Paragraph(line, st["ref"]))
                 story.append(Spacer(1, 4))
         elif kind == "para":
-            en = norm(b.get("en", "")); zh = norm(b.get("zh", ""))
+            en = rich(norm(b.get("en", ""))); zh = rich(norm(b.get("zh", "")))
             if en:
                 story.append(Paragraph(en, st["en_cjk"] if font_for(en) == CJK else st["en"]))
             if zh:
                 story.append(Paragraph(zh, st["zh"]))
         elif kind == "footnote":
-            en = norm(b.get("en", "")); zh = norm(b.get("zh", ""))
+            en = rich(norm(b.get("en", ""))); zh = rich(norm(b.get("zh", "")))
             mk = b.get("marker", "")
             txt = f"注 {mk}：{zh}" if zh else f"注 {mk}：{en}"
             story.append(Paragraph(txt, st["fn"]))
@@ -174,15 +227,18 @@ def build(json_in, out_pdf, label=""):
                     try:
                         from reportlab.lib.utils import ImageReader
                         iw, ih = ImageReader(str(ip)).getSize()
-                        maxw = AVAIL
-                        maxh = HEIGHT - TM - BM - 40 * mm
+                        # 横版页可用宽度更大（A4 横过来），宽表放得下
+                        page_w = WIDTH if not landscape_active else HEIGHT
+                        page_h = HEIGHT if not landscape_active else WIDTH
+                        maxw = page_w - LM - RM
+                        maxh = page_h - TM - BM - 40 * mm
                         scale = min(maxw / iw, maxh / ih, 1.0)
                         w = iw * scale; h = ih * scale
                         story.append(Image(str(ip), width=w, height=h))
                     except Exception as e:
                         story.append(Paragraph(f"[图片缺失: {img} ({e})]", st["cap_en"]))
-            cz = norm(b.get("caption_zh", "")); ce = norm(b.get("caption_en", ""))
-            ne = norm(b.get("note_en", "")); nz = norm(b.get("note_zh", ""))
+            cz = rich(norm(b.get("caption_zh", ""))); ce = rich(norm(b.get("caption_en", "")))
+            ne = rich(norm(b.get("note_en", ""))); nz = rich(norm(b.get("note_zh", "")))
             if kind != "equation":
                 if cz:
                     story.append(Paragraph(cz, st["cap_zh"]))
@@ -194,17 +250,28 @@ def build(json_in, out_pdf, label=""):
                 story.append(Paragraph(ne, st["cap_en"]))
             story.append(Spacer(1, 6))
         # fn_index / 其他：跳过
+
+    # 文档：竖版 + 横版两个模板，宽表自动落到横版
     doc = SimpleDocTemplate(str(out_pdf), pagesize=A4,
                             leftMargin=LM, rightMargin=RM, topMargin=TM, bottomMargin=BM,
                             title=norm(meta.get("title_zh", "")),
                             author=meta.get("author_year", ""))
+
+    frame_p = Frame(LM, BM, WIDTH - LM - RM, HEIGHT - TM - BM, id="fp")
+    frame_l = Frame(LM, BM, HEIGHT - LM - RM, WIDTH - TM - BM, id="fl")
+    doc.addPageTemplates([
+        PageTemplate(id="portrait", frames=[frame_p], pagesize=A4),
+        PageTemplate(id="landscape", frames=[frame_l], pagesize=landscape(A4)),
+    ])
+
     if label:
         def footer(canvas, doc_):
             canvas.saveState()
-            canvas.setFont("Helvetica", 7.5)
+            canvas.setFont(CJK, 7.5)
             canvas.setFillColor(HexColor("#999"))
-            canvas.drawCentredString(WIDTH / 2, 8 * mm,
-                                     f"{norm(meta.get('title_zh',''))} ｜ {label} ｜ 第 {doc_.page} 页")
+            pw = doc_.pagesize[0]
+            canvas.drawCentredString(pw / 2, 8 * mm,
+                                     f"{norm(meta.get('title_zh',''))} | {label} | 第 {doc_.page} 页")
             canvas.restoreState()
         doc.build(story, onFirstPage=footer, onLaterPages=footer)
     else:

@@ -1,0 +1,21 @@
+{
+  "case": "leak_abbr_full",
+  "kind": "full",
+  "assertions": {
+    "blocks": 4,
+    "footnotes": 1,
+    "tables": 0,
+    "figures": 0,
+    "equations": 0,
+    "pdf_name": "",
+    "qa": {
+      "fail": 1
+    },
+    "rules": {
+      "fail": 0
+    },
+    "audit": {
+      "fail": 0
+    }
+  }
+}

@@ -8,10 +8,10 @@
 <!-- readme-state:start -->
 | 项 | 当前值 |
 |---|---|
-| 当前版本 | `v2.15` |
-| 工程规则 | 1–**67** 条（下一条 68） |
-| 黄金测试集 | **14** 个案例，14 PASS |
-| 翻译记忆 | **80** 条词级纠正 + **9** 条整句模式 |
+| 当前版本 | `v2.16` |
+| 工程规则 | 1–**73** 条（下一条 74） |
+| 黄金测试集 | **15** 个案例，15 PASS |
+| 翻译记忆 | **81** 条词级纠正 + **9** 条整句模式 |
 | 公开主库 | `github.com/xiaozeng9066/zoterofanyi-skill` |
 <!-- readme-state:end -->
 
@@ -25,63 +25,77 @@
 ## 这是什么 / 不是什么
 
 **是**：一个自迭代的 workBuddy / DSH skill，包含完整流水线（抽取 → 翻译 → 校验 → 渲染 → 挂回）、
-67 条实测工程规则、14 个黄金回归案例、翻译记忆库，以及「每篇论文都要让 skill 变强一点」的迭代协议。
+73 条实测工程规则、15 个黄金回归案例、翻译记忆库，以及「每篇论文都要让 skill 变强一点」的迭代协议。
 
-**不是**：不是 pip 包，不是命令行工具集，不是通用 PDF 翻译器。它假设：论文有文本层、
-以英文撰写、读者的母语是中文、需要保留原有版面语义（公式不能重排、表格不能重排）。
+**不是**：不是 pip 包，不是通用 PDF 翻译器。它假设论文有文本层、以英文撰写、需保留版面语义。
+
+## 怎么工作（一张图）
+
+```mermaid
+flowchart TD
+    A["source.pdf<br/>(Zotero 条目里的 PDF)"] --> B["prepare<br/>抽取·装配·标记·Gate 1"]
+    B -->|"0 BLOCK 通过"| C["分块 chunk_NNN + 翻译指南"]
+    C --> D["N 个翻译子代理<br/>(唯一需要模型的环节之一)"]
+    D --> E["check<br/>合并·QA·规则·审校分块"]
+    E --> F["M 个审校子代理<br/>(译者 ≠ 审校者)"]
+    F --> G["finish<br/>修订·脚注索引·Gate 2·出 PDF"]
+    G -->|"0 BLOCK 通过"| H["双语 PDF<br/>挂回 Zotero 条目"]
+    G -->|"BLOCK > 0"| X["打回重译/重审"]
+    X --> D
+    B -.->|"BLOCK > 0"| Y["先修版面再翻译"]
+    Y --> B
+
+    subgraph L["纯本地进程 · 0 token"]
+        B
+        E
+        G
+    end
+    subgraph M["需要模型 · 占全部 token"]
+        D
+        F
+    end
+```
+
+三个阶段里，**只有翻译和审校两批子代理需要模型**（占全部 token）；其余
+抽取 / 装配 / 门禁 / 合并 / 索引 / 排版全是本地进程，`pipeline.py` 一条命令跑完、几秒钟、
+零 token。两道 preflight 门禁（Gate 1 开译前、Gate 2 交付前）都必须 0 BLOCK，否则打回。
 
 ## 产出长什么样
 
-| 项 | 约定 | 为什么 |
-|---|---|---|
-| 版式 | 英文段（灰）→ 中文段（黑），成对不跨页断开 | 对照阅读时视线不必来回跳 |
-| 公式 | **原图裁切**，绝不重排 | 公式字符经提取常损坏，重排必错 |
-| 表格 | **原图裁切** + 中文表注 + 中文列名对照；跨页表标「上接前页」 | 数字对齐关系只在原版式里成立 |
-| 插图 | 取 PDF 内嵌原图 + 译图注；图内文字不译 | 内嵌原图画质最高 |
-| 脚注 | 独立块，标「注 N ｜ 原文 p.X」+ **脚注编号对照表** | 正文 `^{n}` 与脚注双向可核 |
-| 参考文献 | 不翻译；但不得连带吞掉其后的附录 | 曾因终止判定过宽漏译 6 条 |
-| 页码锚点 | 每页标「原文 p.X」 | 引用、核对、与原文对照 |
-| 项目备注 | 写进 **父条目**笔记 | Zotero 不允许笔记挂附件下 |
+| 项 | 约定 |
+|---|---|
+| 版式 | 英文段（灰）→ 中文段（黑），成对不跨页断开 |
+| 公式 / 表格 | **原图裁切**，绝不重排（重排必错）；表附中文表注与列名对照 |
+| 插图 | 取 PDF 内嵌原图 + 译图注，图内文字不译 |
+| 脚注 | 独立块「注 N ｜ 原文 p.X」+ 编号对照表 |
+| 参考文献 | 不翻译，但不得吞掉其后的附录 |
+| 页码锚点 | 每页标「原文 p.X」 |
+| 项目备注 | 写进父条目笔记（Zotero 不允许挂附件下） |
 
 ## 快速开始
 
-### 1. 放到用户级 skill 目录（不是项目目录）
-
-```powershell
-# Windows
-git clone https://github.com/xiaozeng9066/zoterofanyi-skill.git "$HOME\.workbuddy\skills\zoterofanyi"
-```
+### 1. 安装到用户级 skill 目录
 
 ```bash
-# macOS / Linux / DSH
 git clone https://github.com/xiaozeng9066/zoterofanyi-skill.git "$HOME/.workbuddy/skills/zoterofanyi"
 ```
 
-必须是**用户级**目录，这样本机所有项目、所有会话都能用；复制进项目目录会变成项目级 skill，
-换工作区就失效。
+必须是**用户级**目录（本机所有项目、所有会话可用）；复制进项目目录换工作区就失效。
 
-### 2. 探测本机环境
-
-```bash
-python scripts/bootstrap.py      # 生成 local_config.json（不入库）
-python scripts/paths.py --check  # 校验 Python / Zotero / 工作目录
-python scripts/paths.py --shell bash   # 输出 $PY $S $K $W，供后续命令使用
-```
-
-依赖两个独立 Python 环境（主工具需 PyMuPDF，MinerU 可选但双栏/表格/公式必需），
-详见 `SETUP.md` 与 `WINDOWS-INSTALL.md`。**不要**用系统 Python 直接跑脚本——会缺 PyMuPDF。
-
-### 3. 验证它没坏
+### 2. 探测环境 + 验证
 
 ```bash
-python scripts/regression_suite.py --fixtures fixtures    # 应为 14/14 PASS
-python scripts/preflight.py --stage skeleton --help       # 两道门禁之一
+python scripts/bootstrap.py      # 探测本机环境（含 GPU/代理），生成 local_config.json（不入库）
+python scripts/paths.py --check  # 校验 Python / Zotero / 工作目录是否齐全
+python scripts/regression_suite.py --fixtures fixtures   # 应为 15/15 PASS
 ```
 
-### 4. 处理第一篇
+依赖两个独立 Python 环境（主工具需 PyMuPDF，MinerU 处理双栏/表格/公式），
+详见 `SETUP.md`。**不要**用系统 Python 直接跑脚本。
 
-把 PDF 放进 `<工作区>/zotero-translate/<条目key>/source.pdf`，然后走**三个阶段**——
-`pipeline.py` 已把十几个脚本串成 3 条命令，中间只有两批子代理需要模型（翻译、审校）：
+### 3. 处理第一篇
+
+把 PDF 放进 `<工作区>/zotero-translate/<条目key>/source.pdf`，然后走三个阶段：
 
 ```bash
 "$PY" "$S/pipeline.py" prepare --work "$W"     # 抽取→装配→标记→Gate 1→分块→翻译指南
@@ -92,30 +106,12 @@ python scripts/preflight.py --stage skeleton --help       # 两道门禁之一
 ```
 
 **不要跳步**：Gate 1 未 0 BLOCK 不许开译，全量二遍审校（译者 ≠ 审校者）不许抽样。
-分步命令仍保留用于排障，见 `SKILL.md`「流水线（严格按序）」。
-
-## 一篇论文的流程
-
-下表是各阶段背后的脚本（排障用）；日常直接用上面的三条 `pipeline.py` 命令。
-
-| 阶段 | 主要脚本 | 通过标准 |
-|---|---|---|
-| 抽取 | `extract_mineru.py` / `run_mineru.py` → `extract.py` | 块数、脚注数与版面一致 |
-| 结构 | `regions.py` / `mark_sections.py` | 参考文献、附录、脚注区判定正确 |
-| 门禁一 | `preflight.py --stage skeleton` | **0 BLOCK** |
-| 翻译 | `translate.py`（模型只输出中文，按段哈希缓存） | 覆盖率 100%，无原文占位 |
-| 校验 | `qa.py` / `rules_check.py` / `term_audit.py` | 先自证「是译文错还是尺子错」 |
-| 审校 | `emit_review.py` → 外部审校 → `apply_fixes.py` | 全量二遍，不许抽样 |
-| 渲染 | `render.py` → `build_pdf.py` | 中文文本层可提取（Zotero 搜索依赖） |
-| 门禁二 | `preflight.py --stage full` | **0 BLOCK** |
-| 挂回 | Zotero MCP CLI（`attach` / `note`）；要「Zotero 开着也能写」须装 `scripts/zotero_bridge/` 插件 | 附件与笔记挂在对应条目 |
-| 收尾 | `iterate_commit.py` | 见下文「迭代」 |
 
 ## 仓库结构
 
 | 路径 | 内容 |
 |---|---|
-| `SKILL.md` | 主文档：何时用、交付约定、流水线、**67 条工程规则**、各版式特例 |
+| `SKILL.md` | 主文档：何时用、交付约定、流水线、**73 条工程规则**、各版式特例 |
 | `WORKBUDDY-ADAPTER.md` | WorkBuddy 工具映射、Bash 版流水线、git / 同步 / 公开库专章 |
 | `CHANGELOG.md` | 一行一版；**版本号 = git tag 名** |
 | `PORTABILITY.md` | 换电脑：git 同步 + `local_config.json` 本地化 |
@@ -125,32 +121,31 @@ python scripts/preflight.py --stage skeleton --help       # 两道门禁之一
 | `MIGRATION.md` | 从 DSH 迁移到 WorkBuddy 的记录 |
 | `scripts/` | 50+ 脚本：抽取、翻译、校验、渲染、迭代、同步、脱敏；**一键编排 `pipeline.py`**、PDF 回退 `build_pdf_reportlab.py`、`zotero_bridge/`（写回插件） |
 | `templates/` | 术语表模板、术语例外表、原文问题表、用量日志模板 |
-| `tm/` | 翻译记忆：`term_fixes`（76 条词级纠正）、`error_patterns`（9 条整句模式） |
-| `fixtures/` | 14 个黄金案例（合成数据，可公开） |
+| `tm/` | 翻译记忆：`term_fixes`（81 条词级纠正）、`error_patterns`（9 条整句模式） |
+| `fixtures/` | 15 个黄金案例（合成数据，可公开） |
 | `fixtures_full/` | 本机全强度真实快照，**gitignored、不入库** |
 
-## 常用脚本速查
+## 常用命令
 
-| 想知道 / 想做的事 | 命令 |
+| 想做什么 | 命令 |
 |---|---|
-| 跑全部回归 | `python scripts/regression_suite.py --fixtures fixtures` |
-| 查某段译文错在哪 | `python scripts/qa.py --help`（先跑，再人工判断） |
-| 术语是否统一 | `python scripts/term_audit.py` + `templates/term_exceptions.json` |
-| 交付前门禁 | `python scripts/preflight.py --stage full` |
-| 收尾提交 + 推送 | `python scripts/iterate_commit.py -v vX.Y -m "一句话"` |
-| 只看版本坐标 | `python scripts/iterate_commit.py --status` |
-| 与云端对齐 | `python scripts/sync_now.py --start` / `--end` / `--status` |
-| 检查隐私门禁 | `python scripts/public_sanitize.py --gate` |
-| 检查本 README 是否过时 | `python scripts/check_readme.py`（`--fix` 自动刷新数字） |
-| 是否够格被记录成经验 | `python scripts/build_memory.py --help` |
+| 一键编排（三个阶段） | `pipeline.py prepare / check / finish` |
+| 跑全部回归 | `regression_suite.py --fixtures fixtures` |
+| 交付前门禁 | `preflight.py --stage full` |
+| 术语是否统一 | `term_audit.py` + `templates/term_exceptions.json` |
+| 收尾提交 + 推送 | `iterate_commit.py -v vX.Y -m "一句话"` |
+| 与云端对齐 | `sync_now.py --start` / `--end` / `--status` |
+| 隐私门禁 | `public_sanitize.py --gate` |
+
+（全部脚本都在 `scripts/` 下，带 `--help` 看参数。）
 
 ## 质量体系
 
 四层护栏，缺一层就会出现「看起来漂亮但错得离谱」的译文：
 
 1. **两道 preflight 门禁**：开译前 `--stage skeleton`、交付前 `--stage full`，都必须 0 BLOCK。
-2. **14 个黄金案例**：改任何 `scripts/` 后必须全绿；有案例由 PASS 变 FAIL 不得合并。
-3. **67 条工程规则**：每条都是踩坑换来的，写在 `SKILL.md`，编号只增不改。
+2. **15 个黄金案例**：改任何 `scripts/` 后必须全绿；有案例由 PASS 变 FAIL 不得合并。
+3. **73 条工程规则**：每条都是踩坑换来的，写在 `SKILL.md`，编号只增不改。
 4. **翻译记忆**：`tm/term_fixes.json` 记录词级纠正（如 `suggest` 不译「表明」），
    `tm/error_patterns.json` 记录整句模式，`build_memory.py` 增量回流。
 
