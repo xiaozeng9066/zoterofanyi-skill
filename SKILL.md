@@ -175,20 +175,20 @@ $MIDDLE = (Get-ChildItem "$W\work\mineru" -Recurse -Filter "*_middle.json" | Sel
 # 8) 回归检查（全绿才进入交付）
 & $PY "$S\regression_check.py" <原文.pdf> "$W\work\regions.json" "$W\work\bilingual_idx.json" "$W\reports"
 
-# 9) 挂回 Zotero（MCP 工具，serverName=zotero；**Zotero 开着也能写**）
-#    mcp__zotero__attach_file(item_key=<父条目>, file_path=<pdf>, filename=<显示名>)
-#    mcp__zotero__create_note(item_key=<父条目>, title="翻译项目备注｜中英对照 · <作者 年份>", content=<项目备注.md 正文>)
-#    mcp__zotero__verify_item(item_key=...) / list_attachments / get_item  ← 回读验证
-#    写入路径（自动选择，无需人工干预）：
-#      a) **DSH Zotero Bridge 插件**（Zotero 运行时首选）：POST http://127.0.0.1:23119/dsh/bridge
-#         由 Zotero 进程内自己写库 → 不碰 sqlite 锁，界面即时刷新；
-#      b) Zotero 未运行 → 直接写 sqlite（老路径，仍保留）。
-#    `mcp__zotero__attach_file` 的返回里 `via` 字段会写明走了哪条路径。
+# 9) 挂回 Zotero（**Zotero 开着也能写**，首选官方 Local API，规则 74）
+#    首选命令行（scripts/zotero_api.py，标准库零依赖，与 MCP 无关）：
+#      $PY "$S\scripts\zotero_api.py" cli status                    # 探测 Local API / sqlite / bridge 可用性
+#      $PY "$S\scripts\zotero_api.py" cli attach <条目key> <pdf> --title <显示名> [--replace]
+#      $PY "$S\scripts\zotero_api.py" cli note <条目key> --title <标题> --text-file <备注.md>
+#      $PY "$S\scripts\zotero_api.py" cli item <条目key> / search <关键词>   # 回读验证
+#    写入路径（自动降级，无需人工干预）：
+#      a) **Zotero 10 官方 Local API**（首选，Zotero 开着也能写）：localhost:23119/api/，
+#         需用户先到 Zotero「设置 → 高级」勾选「允许其他应用与本机 Zotero 通信」，
+#         首次写入会弹授权框（选 Always Allow）；官方维护、Zotero 升级不破。
+#      b) sqlite 直写（Zotero 未运行时兜底，老路径）。
+#      c) 旧 DSH Bridge 插件（仅历史兼容，Zotero 7+ 会禁用直接放进 profile 的插件，已弃用）。
+#    `attach` 返回的 `via` 字段写明走了哪条路径；`--replace` 走三阶段上传覆盖同名旧附件。
 #    坑与恢复见下面「Zotero 写回」一节。
-#    若没有 MCP 工具，退回命令行（同一实现）：
-#      $PY "$HOME\.dsh\mcp\zotero_mcp.py" cli attach <条目key> <pdf> --filename <文件名>
-#      $PY "$HOME\.dsh\mcp\zotero_mcp.py" cli note <条目key> --title <标题> --text-file <备注.md>
-#      $PY "$HOME\.dsh\mcp\zotero_mcp.py" cli verify <条目key> / cli bridge / cli delete <key>
 #    注：`python` 一律用 DSH 自带解释器
 #      %USERPROFILE%\.dsh\dsh-runtimes\dsh-primary-runtime\dependencies\python\python.exe
 
@@ -408,22 +408,25 @@ Dimitrov 2026（19 页 / 11 图 3 表；翻译 11 块 + 审校 12 块；共 353 
 |---|---|---|
 | **附件缺 `title`** | 条目树里附件**显示为空**（"没有文件名"）；库里 441/449 个 PDF 附件都有 title，只有写错的那条没有 | `attach_file` 默认 `title = filename`；`verify_item` 把"有 title"设为硬门禁 |
 | **stdio 编码** | Windows 上 MCP 客户端按 ANSI 解码，直接吐 UTF-8 中文 → 工具描述与结果全是乱码 | 输出一律 `ensure_ascii=True`（`\uXXXX`），输入固定按 UTF-8 解码 |
-| **写锁** | Zotero **长期持有 sqlite 写锁**（实测运行期 40 次尝试 0 次成功），外部写入一律 `database is locked` | **不再要求关闭 Zotero**：走 `DSH Zotero Bridge` 插件（见下）由 Zotero 自己写；仅在 Zotero 未运行时退回直接写库 |
+| **写锁** | Zotero **长期持有 sqlite 写锁**（实测运行期 40 次尝试 0 次成功），外部写入一律 `database is locked` | **不再要求关闭 Zotero**：走 **Zotero 10 官方 Local API**（见下）；仅在 Zotero 未运行时退回直接写库 |
 
-### DSH Zotero Bridge（2026-10-18 起，Zotero 开着也能写）
+### Zotero 挂回通道（2026-11-15 起，规则 74：Local API 优先）
 
-- **插件**：`%APPDATA%\Zotero\Zotero\Profiles\<profile>\extensions\author@example.org`
-  （源码在 `%USERPROFILE%\.dsh\zotero-bridge\dsh-zotero-bridge@local\`，改完用 `Compress-Archive` 打包覆盖即可）
-- **端点**：`POST http://127.0.0.1:23119/dsh/bridge`（复用 Zotero 自带 HTTP 服务，不额外开端口）
-- **操作**：`ping` / `attach{itemKey,file,filename,title}` / `note{itemKey,title,html}` / `delete{key}`
-- **关键实现细节**（踩过才知道）：
-  1. Zotero 对 `application/json` **已把 body 解析成对象**放进 `data.data`，不是字符串——先判 `typeof === "object"`；
-  2. 端点对象要挂 `Zotero.Server.Endpoints['/dsh/bridge']`，`init` 返回 `[status, contentType, body]`，异步操作用 Promise；
-  3. 写库走 `Zotero.Attachments.importFromFile({file, parentItemID, libraryID})` 与 `new Zotero.Item('note')` + `saveTx()`，**不要**自己拼 sqlite；
-  4. 安装/升级后要**重启 Zotero** 一次（插件只启动时加载）；之后再改代码也只需重启 Zotero。
-- **自检**：`$PY "$HOME\.dsh\mcp\zotero_mcp.py" cli bridge` → `{"ok":true,"zotero":"9.0.6"}`；
-  `cli verify <条目key>` → `ok:true` 才算挂好。
-- **回退**：桥接不可用时 `attach_file` 自动退回 sqlite 路径（此时必须关 Zotero），返回的 `via` 字段会说明。
+- **首选：Zotero 10 官方 Local API**（`http://localhost:23119/api/`，读无认证、写需授权）：
+  1. 前提：Zotero「设置 → 高级 → 允许其他应用与本机 Zotero 通信」勾选；未勾选时 `/api/` 返回 `403 Local API is not enabled`。
+  2. 写授权：`POST /api/local/authorize`（带 `Zotero-Server-ID` 头，先 `GET /api/` 读它）弹「Allow / Always Allow / Deny」；
+     Always Allow 的 32 字符 key 可持久化复用（按 server_id 分区存 `~/.workbuddy/zotero_local_key.json`）；
+     否则一次性，收到 `401` 就重新授权。
+  3. 每次写带 `Zotero-API-Key` 头；写请求缺 `Zotero-Server-ID` 返回 `428`。
+  4. **替换已有附件** = 三阶段上传：`POST /users/0/items/<key>/file?md5=&filename=&filesize=&mtime=`（`If-Match: <旧md5>` 触发替换）
+     → `POST /api/local/uploads/<uploadKey>` 传字节 → `POST .../file?upload=<uploadKey>` 登记（`204`）。
+     新增附件则先 `POST /users/0/items` 建 attachment item，再 `If-None-Match: *` 上传。
+- **兜底：sqlite 直写**（Zotero 未运行时）；锁库时给出「勾 Local API 或退 Zotero」的明确指引。
+- **已弃用：DSH Zotero Bridge 插件**（`scripts/zotero_bridge/`）。原因：Zotero 7+ 会**主动禁用**
+  「自己出现在 profile/extensions 目录里」的插件（必须 UI「Install Add-on From File」），
+  且 `strict_max_version` 一越界（升 Zotero 10）就被 `appDisabled`。Local API 是官方路线，不再维护插件。
+- **自检**：`$PY "$S\scripts\zotero_api.py" cli status` → `local_api.ok:true` 才走 Local API；
+  `cli item <条目key>` 回读附件/笔记确认挂好。
 
 ## 2026-10 新增：Nature / IJO 双栏版式的 6 类特例（Jia 2017，7 页，实测）
 
@@ -766,6 +769,19 @@ Dimitrov 2026（19 页 / 11 图 3 表；翻译 11 块 + 审校 12 块；共 353 
       关键口径：只与「完整新结构」篇对比，排除旧 DSH 残缺 metrics（否则把 12 篇 blocks=0
       的旧篇拉低均值，得出「本篇变差」的假象）。
     - 禁止：只在对话里总结「建议加规则」却不改文件——那不算迭代。
+74. **Zotero 挂回首选官方 Local API，不再依赖自定义 Bridge 插件**（v2.19）：
+    - 起因：用户升级到 Zotero 10 后挂回 404。排查发现旧 Bridge 插件 `dsh-zotero-bridge@local`
+      的 `strict_max_version: 9.*` 被 Zotero 判定不兼容而 `appDisabled`；v2.15 新做的
+      `dsh-bridge@zengf.local`（maxVersion 已正确）虽 xpi 复制进 profile/extensions，
+      却因 **Zotero 7+ 会主动禁用「自己出现在 profile 目录里」的插件**（必须 UI
+      「Install Add-on From File」安装）而从未加载 → `/dsh/bridge` 端点从未注册 → 404。
+    - 落地：`scripts/zotero_api.py`（标准库零依赖）三路自动降级 —— Zotero 10 官方 Local API
+      （读无认证、写经 `POST /api/local/authorize` 授权，三阶段上传替换附件）→ sqlite 直写
+      （Zotero 未运行）→ 旧 Bridge（仅历史兼容）。Local API 是官方维护，升级不破。
+    - 关键口径：挂回不通先 `cli status` 看 `local_api.ok`；`Local API is not enabled` = 用户
+      没勾「设置 → 高级 → 允许其他应用通信」，不是网络/权限问题。写请求必须带
+      `Zotero-Server-ID`（先 `GET /api/` 读）否则 `428`；一次性授权 key 收到 `401` 要重新 authorize。
+    - 禁止：再靠「直接复制 xpi 进 extensions 目录」装插件——Zotero 会静默禁用，白折腾。
 
 ## 成本控制（Dimitrov 2026 实测：会话口径 ¥2.44/篇，19 页）
 

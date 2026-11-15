@@ -8,6 +8,47 @@
 > v2.2–v2.7 的完整迭代史只存于本机离线备份
 > `~/.workbuddy/backups/zoterofanyi-skill-archive-20261114.bundle`（原归档库已于 2026-11-14 删除）。
 
+## v2.19 — 2026-11-15 · Zotero 挂回改走官方 Local API（规则 74）
+
+**背景**
+
+用户反馈「Zotero 里还是老样子」——双语 PDF 已重渲染，但 Zotero 条目里挂的还是旧附件。
+排查发现挂回 404 的真因：用户 Zotero 已从 7 升到 **10.0.8**，旧 Bridge 插件
+`dsh-zotero-bridge@local` 声明 `strict_max_version: 9.*` → 被 Zotero 判定不兼容而 `appDisabled`；
+v2.15 新做的 `dsh-bridge@zengf.local`（maxVersion 已正确）虽把 xpi 复制进 profile/extensions，
+却因 **Zotero 7+ 会主动禁用「自己出现在 profile 目录里」的插件**（必须 UI「Install Add-on From File」
+安装）而从未进 `extensions.json` → `/dsh/bridge` 端点从未注册 → 404。
+
+**根因与修复**
+
+- **改用 Zotero 10 官方 Local API**（`localhost:23119/api/`，2026 年随 Zotero 10 正式发布写支持）：
+  读无需认证、写经 `POST /api/local/authorize` 弹授权框（Allow / Always Allow / Deny），
+  官方维护、Zotero 升级不破，彻底摆脱「自定义插件被禁用」的坑。
+- **新增 `scripts/zotero_api.py`**（标准库零依赖）：三路自动降级 —— Local API（首选）→
+  sqlite 直写（Zotero 未运行）→ 旧 Bridge（仅历史兼容）。`cli status` 探测三路可用性；
+  `cli attach --replace` 走**三阶段上传**覆盖同名旧附件（`If-Match: <旧md5>` 触发替换）；
+  `cli note` 建笔记；`cli item/search` 回读验证。
+- 关键实现细节（官方 v3/local_api 文档核对）：写请求必须带 `Zotero-Server-ID`（先 `GET /api/`
+  读响应头）否则 `428`；`Local API is not enabled` = 用户没勾「设置 → 高级 → 允许其他应用通信」；
+  Always Allow 的 32 字符 key 按 server_id 分区持久化到 `~/.workbuddy/zotero_local_key.json`，
+  一次性 key 收到 `401` 要重新 authorize。
+
+**指标实测**
+
+- `zotero_api.py` 零第三方依赖、纯标准库（`urllib` + `sqlite3` + `hashlib`）。
+- `cli status` 正确报告三路状态；`cli search/item` 在 Local API 未开时正确降级到 sqlite 快照读；
+  `cli attach` 在「Local API 未开 + Zotero 运行中」时给出明确的「勾设置 或 退 Zotero」指引，不再裸 traceback。
+- 黄金集不受影响（本次新增挂回工具，不改翻译/审校/渲染链路）。
+
+**学到的东西**
+
+- **「复制 xpi 进 extensions 目录」≠「已安装」**：Zotero 7+ 会静默禁用直接放入 profile 的插件，
+  只有 UI「Install Add-on From File」或官方 Local API 授权才算数。规则 65 的「查 extensions.json」
+  只能解释「为什么 404」，不能保证「装上就能用」。
+- 自定义插件是「与 Zotero 版本赛跑」：Zotero 一升级、`strict_max_version` 一越界就失效，
+  而官方 Local API 由 Zotero 团队维护，是长期正解。
+- 本版**未推送**（用户要求先不 push），本地提交 + 打 tag v2.19，待放行后同步。
+
 ## v2.18 — 2026-11-15 · 修横放表旋转 + 图表独占一页（根治表格方向漂移）
 
 **背景**
