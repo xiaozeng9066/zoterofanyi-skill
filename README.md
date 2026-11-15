@@ -8,7 +8,7 @@
 <!-- readme-state:start -->
 | 项 | 当前值 |
 |---|---|
-| 当前版本 | `v2.22` |
+| 当前版本 | `v2.23` |
 | 工程规则 | 1–**75** 条（下一条 76） |
 | 黄金测试集 | **15** 个案例，15 PASS |
 | 翻译记忆 | **81** 条词级纠正 + **9** 条整句模式 |
@@ -84,8 +84,8 @@ git clone https://github.com/xiaozeng9066/zoterofanyi-skill.git "$HOME/.workbudd
 ### 2. 探测环境 + 验证
 
 ```bash
-python scripts/bootstrap.py      # 探测本机环境（含 GPU/代理），生成 local_config.json（不入库）
-python scripts/paths.py --check  # 校验 Python / Zotero / 工作目录是否齐全
+python scripts/bootstrap.py      # 一键引导：探测本机环境（GPU/代理/Zotero/git）+ 自动体检资源门禁 + 黄金集
+python scripts/gate.py           # 四类门禁统一体检（换机常用 `gate.py resources`，bootstrap 已自动跑过）
 python scripts/regression_suite.py --fixtures fixtures   # 应为 15/15 PASS
 ```
 
@@ -175,7 +175,8 @@ python scripts/regression_suite.py --fixtures fixtures   # 应为 15/15 PASS
 ## 跨机与网络
 
 - 版本资产走 git；本机差异只写 `local_config.json`（**不入库**）。
-- 换机：`git clone` → `python scripts/bootstrap.py` → `python scripts/paths.py --check`。
+- 换机：`git clone` → `python scripts/bootstrap.py`（自动跑完 `detect_env` → 资源门禁体检 → 黄金集，
+  报告里「[资源门禁] 未就绪 N 项」直接告诉你缺什么）。照「下一步」补齐即可，无需记得再跑 `gate.py`。
 - 国内网络下 GitHub 一律走代理：`detect_env.py` 探测本机代理端口写 `network.proxy_candidates`，
   `sync_now.py` 逐端点重试，`--json` 里的 `endpoint` 说明本次实际用了哪个。
   **换端口不等于绕过代理**；`degraded: true` 表示发生了应急降级，属异常路径。

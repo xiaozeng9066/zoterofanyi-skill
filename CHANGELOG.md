@@ -8,6 +8,24 @@
 > v2.2–v2.7 的完整迭代史只存于本机离线备份
 > `~/.workbuddy/backups/zoterofanyi-skill-archive-20261114.bundle`（原归档库已于 2026-11-14 删除）。
 
+## v2.23 — 2026-11-15 · README 正文补同步（换机流程 / bootstrap 描述）
+
+**背景**
+
+v2.22 只让 `check_readme.py --fix` 刷了状态表数字（版本/规则/案例/记忆），但 README 正文里
+「探测环境」和「跨机与网络」两节的换机流程、`bootstrap.py` 描述还停留在 v2.21 之前的旧表述，
+没反映「bootstrap 自动跑完体检」和「gate.py 换机一键体检」两个 v2.22 的新事实。
+
+**改动**
+
+- `README.md` §2：`bootstrap.py` 描述改为「一键引导：探测 + 自动体检资源门禁 + 黄金集」，
+  并把 `gate.py` 纳入验证步骤（去掉已并入 bootstrap 的 `paths.py --check` 独立行）。
+- `README.md` §跨机与网络：换机流程改为「`git clone` → `bootstrap.py`（自动跑完体检，报告里
+  『[资源门禁] 未就绪 N 项』直接告诉缺什么）」，点明无需记得再跑 `gate.py`。
+
+**学到**：`check_readme.py` 只对账「机械数字」，正文说明文字的同步仍要靠人——这正是规则 64
+「README 与代码同源」里「数字用 `--fix` 刷、文字只能人工」的那一半。
+
 ## v2.22 — 2026-11-15 · 体检自动化 + 去隐式环境硬编码（规则 75 补强）
 
 **背景**
