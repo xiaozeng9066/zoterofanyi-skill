@@ -126,6 +126,14 @@ def covered_by_equiv(num, en, zh):
         for zh_ch, d in ZH_DIGIT.items():
             if d == str(int(val)) and zh_ch in zh:
                 return True
+    # 2b) 「1」的中文数词形态（规则 82）：数字 1 太常见，旧逻辑不敢放行，导致
+    #     "more than 1 phenotypes"→"一种以上表型"、"1 in 3"→"三分之一" 被误判为数字丢失。
+    #     只在「1 + 量词」或「N 分之」这两种强形态下放行，不用裸「一」（"一般/一致"会误放）。
+    if str(int(val)) == "1":
+        if re.search(r"一\s*[种项名个次本份组层类批条]", zh):
+            return True
+        if re.search(r"\b1\s+in\s+\d+\b", en, re.I) and "分之" in zh:
+            return True
     # 3) 章节/阶段编号：Phase 1 ↔ 第一阶段（中文正文里"一"字无处不在，不能靠 rule 2 放行）
     if val.is_integer() and 1 <= val <= 9:
         if re.search(r"\b(Phase|Step|Stage|Chapter|Part|Section|Appendix)\s+" + re.escape(tok) + r"\b",
@@ -154,6 +162,14 @@ def check_block(b, glossary):
     en_nums, zh_nums = norm_nums(en), norm_nums(zh)
     lost = [n for n in en_nums if n not in zh_nums and not covered_by_equiv(n, en, zh)]
     newly = [n for n in zh_nums if n not in en_nums]  # 新增数字仍只报 WARN
+    # 公式块（规则 82）：公式密集块的原文数字是「Σ_{l=2}^{3}」被抽取器拍平后的残渣
+    # （实测 "3l=2"、"−20m=1"、"1/20"→"120"），译文若还原成规范 Σ 写法，逐字比对必然失败。
+    # 这类块把「数字丢失」降为 WARN 并写明需人工核对，不静默放过、也不冤枉正确译文。
+    MATH_MARKS = ("Σ", "∑", "^{", "_{", "π", "β", "δ", "κ", "ρ")
+    is_math_block = sum(en.count(s) for s in MATH_MARKS) + en.count("=") >= 3
+    if lost and is_math_block:
+        issues.append(("WARN", f"公式块数字无法逐字比对（公式被拍平，需人工核对）: {lost[:8]}"))
+        lost = []
     if lost:
         issues.append(("FAIL", f"原文数字未在译文中原样出现: {lost[:8]}"))
     if newly:
@@ -211,6 +227,10 @@ def check_block(b, glossary):
             if short and short not in alts:
                 alts.append(short)
         # 词边界：否则 "OLS" 会命中 "controls" 里的 ols（审计器与校验器都犯过这个错）
+        # 规则 82：「保留英文」条目（OR→OR、QDA→QDA）与「术语表没给中文」无法校验——
+        # 旧逻辑会报「「OR」应为「OR」」这种自相矛盾的告警，且会逼译文把可读的「优势比」改回 OR。
+        if canon(term_zh) and canon(term_zh) == canon(term_en):
+            continue
         if re.search(r"\b" + re.escape(canon(term_en)) + r"\b", en, re.I) \
                 and not any(a in zh for a in alts):
             issues.append(("WARN", f"术语未按约定翻译: 「{term_en}」应为「{term_zh}」"))

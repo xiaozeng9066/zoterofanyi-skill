@@ -45,21 +45,34 @@ def merge_cross_page(items):
 
     判据：前一段不以终止标点结尾，且后一段以小写字母/汉字起首，且两段位于相邻页。
     不合并的话，英文会停在 "…which is"，中文停在半句上（实测确实如此）。
+
+    规则 81c：允许中间隔着独立公式/图/表。跨页断句常被页首的公式图片打断
+    （实测本篇 p3-7 尾 "…quanti" → 公式图 p3_equation_5 → p4-0 首 "andcov(…"），
+    旧逻辑要求 out[-1] 就是上一段，于是这类断句永远合不上（Gate 1 H-续句 BLOCK）。
+    中间最多跳过 3 个非正文块；上一段若以 ":;" 等结尾仍视为完整，不合并（"It follows that:" 那类）。
     """
     out = []
     for it in items:
-        if (out and it["kind"] == "para" and out[-1]["kind"] == "para"
-                and it.get("pages") and out[-1].get("pages")
-                and it["pages"][0] - out[-1]["pages"][-1] <= 1):
-            prev = out[-1]
-            prev_en = (prev.get("en") or "").rstrip()
-            cur_en = (it.get("en") or "").lstrip()
-            if prev_en and cur_en and not TERM_RE.search(prev_en) and (
-                    cur_en[0].islower() or "\u4e00" <= cur_en[0] <= "\u9fff"):
-                prev["en"] = prev_en + " " + cur_en
-                prev["pages"] = sorted(set(prev["pages"] + it["pages"]))
-                prev["continued"] = True
-                continue
+        if it["kind"] == "para" and it.get("pages"):
+            k, skipped = len(out) - 1, 0
+            while k >= 0 and out[k]["kind"] != "para" and out[k]["kind"] in ("equation", "figure", "table"):
+                skipped += 1
+                if skipped > 3:
+                    break
+                k -= 1
+            if k >= 0 and skipped <= 3 and out[k]["kind"] == "para":
+                prev = out[k]
+                if prev.get("pages") and it["pages"][0] - prev["pages"][-1] <= 1:
+                    prev_en = (prev.get("en") or "").rstrip()
+                    cur_en = (it.get("en") or "").lstrip()
+                    if prev_en and cur_en and not TERM_RE.search(prev_en) and (
+                            cur_en[0].islower() or "\u4e00" <= cur_en[0] <= "\u9fff"):
+                        prev["en"] = prev_en + " " + cur_en
+                        prev["pages"] = sorted(set(prev["pages"] + it["pages"]))
+                        prev["continued"] = True
+                        if it.get("continued_from"):
+                            prev["continued_from"] = it["continued_from"]
+                        continue
         out.append(it)
     return out
 
@@ -155,7 +168,15 @@ def main():
             is_num_head = bool(re.match(r"^\d+(\.\d+)*\.?\s*[A-Z]", txt)) and len(txt) < 80
             is_short_head = (len(txt) <= 45 and txt[:1].isupper()
                              and not txt.rstrip().endswith((".", ":", ";", ",")))
-            kind = "heading" if (para["size"] >= 14 and len(txt) < 90) or is_num_head or is_short_head else "para"
+            # 文档大标题（规则 81c）：旧逻辑只认「字号≥14 且 <90 字」，长标题（本例 106 字）
+            # 会被判成正文，渲染后整篇没有大标题（preflight J-标题 WARN）。MinerU 已标
+            # mineru_type=title，且首页首个正文块，据此认定为 title。
+            is_doc_title = (para.get("mineru_type") == "title" and pno == 1
+                            and not any(x["kind"] == "title" for x in items))
+            if is_doc_title:
+                kind = "title"
+            else:
+                kind = "heading" if (para["size"] >= 14 and len(txt) < 90) or is_num_head or is_short_head else "para"
             item = {
                 "id": f"p{pno}-{p['idx']}",
                 "kind": kind, "pages": [pno],

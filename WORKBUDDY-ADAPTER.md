@@ -176,10 +176,10 @@ MIDDLE=$(find "$W/work/mineru" -name "*_middle.json" | head -1)
 |---|---|---|
 | 1 | 归类本篇所有 FAIL/WARN：**尺子错 / 译文错 / 原文问题 / 新版面特性** | `$W/reports/` 下的 qa.json、rules.json、preflight.json、reg_*.log |
 | 2 | 尺子错 → 修检查器，**改后必跑黄金集** | `$S/qa.py` / `rules_check.py` / `audit_document.py`；`$PY "$S/regression_suite.py" --fixtures "$K/fixtures" --verbose` |
-| 3 | 新版面特性 → 在 SKILL.md「工程规则」加**新的编号条目**（当前到 75，下一条从 76 起） | `$K/SKILL.md` |
-| 4 | 译文错 → 改译文 + 回流翻译记忆 | `$PY "$S/build_memory.py" --changes "$W/reports/changes*.json" --tm "$K/tm"`（增量合并，不覆盖历史） |
+| 3 | 新版面特性 → 在 SKILL.md「工程规则」加**新的编号条目**（当前到 83，下一条从 84 起） | `$K/SKILL.md` |
+| 4 | 译文错 → 改译文 + 回流翻译记忆 | `$PY "$S/build_memory.py" --changes "$W/reports/changes*.json" --tm "$K/tm"`（增量合并，不覆盖历史；**v2.27 起自动分层**：`--report` 出判定报告，跨词切片只留档不注入、与本篇术语表冲突的让位，见规则 83） |
 | 5 | 原文问题 → 单独立表，不得靠译文掩盖 | `$W/reports/source_issues.md`（模板 `$K/templates/source_issues_template.md`） |
-| 6 | 黄金集单调增长：**每篇新增 full + extract 两个案例** | `$PY "$S/snapshot_case.py" --kind full ... --fixtures "$K/fixtures"`；`--kind extraction` 加 `--must-contain/--must-not-contain` 守读序与 OCR 污染 |
+| 6 | 黄金集单调增长：**每篇新增 full + extract 两个案例** | `$PY "$S/snapshot_case.py" --kind full ... --fixtures "$K/fixtures"`；`--kind extraction` 加 `--must-contain/--must-not-contain` 守读序与 OCR 污染；改了回流逻辑再加 `--kind memory --changes <changes.json>` 锁判定（`fixtures/mem_inject` 即此例） |
 | 7 | CHANGELOG 追加一行 + 项目日志 | `$K/CHANGELOG.md`（日期 / 篇目 / 四指标实测 / 本轮学到的东西）；`.workbuddy/memory/YYYY-MM-DD.md` |
 | 8 | **README 与代码同源**（v2.14 / 规则 64） | `$PY "$S/check_readme.py" --fix` 刷新状态表数字；**另有「怎么用」变化就手改对应章节**；不改会被第 9 步门禁 BLOCK |
 | 9 | **git 提交 + 版本 tag + 云端同步（收口，缺此不算迭代完成）** | `$PY "$S/iterate_commit.py" -v <下一版本> -m "<一句话>"`；自动校验 CHANGELOG 同版本条目 / README 一致性 / 实际文件改动 / 黄金集全绿 / 公开模式隐私 / tag 不重复，通过后 add + commit + annotated tag，**并默认自动推送到 origin + 回读远端 HEAD 校验**（v2.5 / 规则 57）。先看 `--status`、`--dry-run` 预演；临时不联网用 `--no-push`，强制要求已连接用 `--push`；未连接 GitHub 时降级为本地提交 + WARNING |
@@ -228,7 +228,7 @@ MIDDLE=$(find "$W/work/mineru" -name "*_middle.json" | head -1)
 | 首页 / README | `README.md`：定位、产出形态、快速开始、仓库结构、脚本速查、质量体系、迭代机制、隐私边界、常见坑。顶部状态表由 `scripts/check_readme.py` 与真实来源对账，`iterate_commit.py` 强制校验（规则 64）；数字用 `--fix` 刷，文字人工改 |
 | 黄金测试集 | 公开合成 `fixtures/` 15 案例 **15/15 PASS**；本机全强度 `fixtures_full/` 16 案例 **16/16 PASS**（gitignored，v2.24 新增 lie2016_full / lie2016_extract） |
 | 公开版 | `scripts/public_sanitize.py` 生成 `dist/public`（已 gitignore）；发布指南 `PUBLIC-RELEASE.md`、第 9 节。**私有主库仍是唯一真源，全强度 fixtures 不降级** |
-| 翻译记忆 | 82 条词级纠正 + 9 条整句模式（v2.24 回流 UEU766HN「会使 → 与」） |
+| 翻译记忆 | 87 条词级纠正（36 可注入 / 51 跨词切片留档）+ 10 条整句模式（v2.27 回流 DG5NQS8P，并按规则 83 分层） |
 | 术语例外 | `templates/term_exceptions.json`（`translog` 待核实） |
 | 已处理篇目 | 16+ 篇（见工作区 `zotero-translate/<key>/` 与 `CHANGELOG.md`） |
 

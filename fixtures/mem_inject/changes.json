@@ -1,0 +1,80 @@
+{
+ "paper": "SYNTHETIC-MEM (规则 83 用合成句，非真实论文)",
+ "applied": [
+  {
+   "id": "s1-1",
+   "reason": "术语统一：steeply sloping 译「陡降」，不译「峭倾斜」",
+   "severity": "medium",
+   "edits": [
+    {
+     "find": "采用峭倾斜型曲线拟合",
+     "replace": "采用陡降型曲线拟合",
+     "reason": "陡降为规范译名"
+    }
+   ]
+  },
+  {
+   "id": "s2-1",
+   "reason": "表头缩写展开",
+   "severity": "medium",
+   "edits": [
+    {
+     "find": "表 3 上半部分标注为 Unif",
+     "replace": "表 3 上半部分标注为均匀",
+     "reason": "表头缩写须展开为中文"
+    }
+   ]
+  },
+  {
+   "id": "s3-1",
+   "reason": "句内语序调整",
+   "severity": "low",
+   "edits": [
+    {
+     "find": "并由两位作者独立提取数据",
+     "replace": "并以两位作者独立提取数据",
+     "reason": "连词用法"
+    },
+    {
+     "find": "在假定成立时方可使用",
+     "replace": "在设定成立时方可使用",
+     "reason": "用词"
+    }
+   ]
+  },
+  {
+   "id": "s4-1",
+   "reason": "表述统一",
+   "severity": "low",
+   "edits": [
+    {
+     "find": "多分类情形需要额外说明",
+     "replace": "多项情形需要额外说明",
+     "reason": "用词"
+    },
+    {
+     "find": "标准误估计也略低",
+     "replace": "标准误估计也更低",
+     "reason": "程度副词"
+    }
+   ]
+  },
+  {
+   "id": "s5-1",
+   "reason": "拆句",
+   "severity": "low",
+   "edits": [
+    {
+     "find": "暴露对各表型概率之效应不可忽略",
+     "replace": "暴露对各表型概率的影响不可忽略",
+     "reason": "文言虚词改白话"
+    },
+    {
+     "find": "该系数索引为参数向量",
+     "replace": "该系数为参数向量",
+     "reason": "冗余表述"
+    }
+   ]
+  }
+ ]
+}

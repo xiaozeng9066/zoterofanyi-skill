@@ -12,6 +12,9 @@
   snapshot_case.py --kind extraction --blocks <blocks.json> --name pang2021_extract \
                    --must-contain "Objective:" --must-contain "machine learning" \
                    --must-not-contain "Ojecive" --must-not-contain "learnig"
+
+  # 翻译记忆回流案例（锁住规则 83：跨词切片不得当术语注入）
+  snapshot_case.py --kind memory --changes <changes.json> --name mem_inject --fixtures <fixtures目录>
 """
 import argparse, json, shutil, subprocess, sys
 from pathlib import Path
@@ -28,11 +31,12 @@ def run(script, *args):
 
 def main():
     ap = argparse.ArgumentParser()
-    ap.add_argument("--kind", choices=["full", "extraction"], required=True)
+    ap.add_argument("--kind", choices=["full", "extraction", "memory"], required=True)
     ap.add_argument("--name", required=True)
     ap.add_argument("--fixtures", required=True)
     ap.add_argument("--bilingual"); ap.add_argument("--regions")
     ap.add_argument("--blocks"); ap.add_argument("--pdf-name", default="")
+    ap.add_argument("--changes", help="memory 案例：审校修正 changes.json 源文件")
     ap.add_argument("--must-contain", action="append", default=[])
     ap.add_argument("--must-not-contain", action="append", default=[])
     a = ap.parse_args()
@@ -71,6 +75,22 @@ def main():
             else:
                 fs = d.get("findings", [])
                 exp["assertions"][key] = {"fail": sum(1 for x in fs if x.get("级别", x.get("level")) == "FAIL")}
+        shutil.rmtree(tmp, ignore_errors=True)
+    elif a.kind == "memory":
+        # 规则 83：锁住「哪些词对可当术语注入、哪些只算跨词切片」
+        if not a.changes:
+            raise SystemExit("--kind memory 需要 --changes")
+        if Path(a.changes).resolve() != (case / "changes.json").resolve():
+            shutil.copy(a.changes, case / "changes.json")
+        run("build_memory.py", "--changes", str(case / "changes.json"),
+            "--tm", str(tmp / "tm"), "--report", str(tmp / "mem.json"))
+        rep = json.loads((tmp / "mem.json").read_text(encoding="utf-8"))
+        exp = {"case": a.name, "kind": "memory", "assertions": {
+            "edits": rep["edits"],
+            "term_fixes_inject": len(rep["injected"]),
+            "must_keep": rep["injected"],
+            "must_reject": [[w, r] for w, r, _ in rep["skipped"]],
+        }}
         shutil.rmtree(tmp, ignore_errors=True)
     else:
         shutil.copy(a.blocks, case / "blocks.json")

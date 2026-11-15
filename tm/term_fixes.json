@@ -4,573 +4,746 @@
   "right": "可能",
   "ctx_before": "同伴",
   "item": "p5-0",
-  "src": "3EHBMRQR"
+  "src": "3EHBMRQR",
+  "inject": false,
+  "why": "任一侧仅 1 字，属句内片段而非术语"
  },
  {
   "wrong": "排他性",
   "right": "纯",
   "ctx_before": "非",
   "item": "p9-4",
-  "src": "3EHBMRQR"
+  "src": "3EHBMRQR",
+  "inject": false,
+  "why": "任一侧仅 1 字，属句内片段而非术语"
  },
  {
   "wrong": "为",
   "right": "是各国",
   "ctx_before": "中间类别",
   "item": "p10-2",
-  "src": "3EHBMRQR"
+  "src": "3EHBMRQR",
+  "inject": false,
+  "why": "任一侧仅 1 字，属句内片段而非术语"
  },
  {
   "wrong": "学校",
   "right": "场所",
   "ctx_before": "（即在",
   "item": "p11-5",
-  "src": "3EHBMRQR"
+  "src": "3EHBMRQR",
+  "inject": false,
+  "why": "右侧边界是虚词，属跨词片段"
  },
  {
   "wrong": "作为",
   "right": "受",
   "ctx_before": "",
   "item": "p14-1",
-  "src": "3EHBMRQR"
+  "src": "3EHBMRQR",
+  "inject": false,
+  "why": "任一侧仅 1 字，属句内片段而非术语"
  },
  {
   "wrong": "函数",
   "right": "影响",
   "ctx_before": "人主义等文化描述性构念的",
   "item": "p14-1",
-  "src": "3EHBMRQR"
+  "src": "3EHBMRQR",
+  "inject": true
  },
  {
   "wrong": "影响",
   "right": "改变",
   "ctx_before": "还是同伴仅仅",
   "item": "p19-2",
-  "src": "3EHBMRQR"
+  "src": "3EHBMRQR",
+  "inject": false,
+  "why": "同一个原文片段有多种改法，互相冲突"
  },
  {
   "wrong": "程度的",
   "right": "性",
   "ctx_before": "仅仅影响个体对肥胖可接受",
   "item": "p19-2",
-  "src": "3EHBMRQR"
+  "src": "3EHBMRQR",
+  "inject": false,
+  "why": "任一侧仅 1 字，属句内片段而非术语"
  },
  {
   "wrong": "——",
   "right": "）共 ",
   "ctx_before": "—北京、上海、南京和西安",
   "item": "p1-3",
-  "src": "E2HE73V2"
+  "src": "E2HE73V2",
+  "inject": false,
+  "why": "左侧过短或非词"
  },
  {
   "wrong": "文章",
   "right": "接受稿",
   "ctx_before": "",
   "item": "fn-a",
-  "src": "E2HE73V2"
+  "src": "E2HE73V2",
+  "inject": true
  },
  {
   "wrong": "接受",
   "right": "发布",
   "ctx_before": "文章预览版在线",
   "item": "fn-a",
-  "src": "E2HE73V2"
+  "src": "E2HE73V2",
+  "inject": true
  },
  {
   "wrong": "利",
   "right": "于获取",
   "ctx_before": "而便",
   "item": "p1-9",
-  "src": "E2HE73V2"
+  "src": "E2HE73V2",
+  "inject": false,
+  "why": "任一侧仅 1 字，属句内片段而非术语"
  },
  {
   "wrong": "请",
   "right": "要求",
   "ctx_before": "，",
   "item": "p2-14",
-  "src": "E2HE73V2"
+  "src": "E2HE73V2",
+  "inject": false,
+  "why": "任一侧仅 1 字，属句内片段而非术语"
  },
  {
   "wrong": " PA ",
   "right": "体育活动",
   "ctx_before": "校（87.5%）设有课外",
   "item": "p3-15",
-  "src": "E2HE73V2"
+  "src": "E2HE73V2",
+  "inject": true
  },
  {
   "wrong": "消费",
   "right": "摄入",
   "ctx_before": "以及女童的快餐",
   "item": "p5-3",
-  "src": "E2HE73V2"
+  "src": "E2HE73V2",
+  "inject": true
  },
  {
   "wrong": "数据",
   "right": "丰富信息",
   "ctx_before": "及来自学生、家长和学校的",
   "item": "p6-3",
-  "src": "E2HE73V2"
+  "src": "E2HE73V2",
+  "inject": true
  },
  {
   "wrong": "仅",
   "right": "完全",
   "ctx_before": "本文内容",
   "item": "p6-9",
-  "src": "E2HE73V2"
+  "src": "E2HE73V2",
+  "inject": false,
+  "why": "任一侧仅 1 字，属句内片段而非术语"
  },
  {
   "wrong": "影响",
   "right": "“效应”",
   "ctx_before": "校“效应”对学生体重状况",
   "item": "p2-2",
-  "src": "RB7BRXRA"
+  "src": "RB7BRXRA",
+  "inject": false,
+  "why": "同一个原文片段有多种改法，互相冲突"
  },
  {
   "wrong": "仅",
   "right": "但",
   "ctx_before": "",
   "item": "p6-9",
-  "src": "RB7BRXRA"
+  "src": "RB7BRXRA",
+  "inject": false,
+  "why": "任一侧仅 1 字，属句内片段而非术语"
  },
  {
   "wrong": "判",
   "right": "决",
   "ctx_before": "两类",
   "item": "p6-11",
-  "src": "RB7BRXRA"
+  "src": "RB7BRXRA",
+  "inject": false,
+  "why": "任一侧仅 1 字，属句内片段而非术语"
  },
  {
   "wrong": "具有",
   "right": "产生重要",
   "ctx_before": "而某些要素的组合也可能",
   "item": "p6-12",
-  "src": "RB7BRXRA"
+  "src": "RB7BRXRA",
+  "inject": true
  },
  {
   "wrong": "平台",
   "right": "库",
   "ctx_before": "国际系统综述前瞻性注册",
   "item": "p7-6",
-  "src": "RB7BRXRA"
+  "src": "RB7BRXRA",
+  "inject": false,
+  "why": "任一侧仅 1 字，属句内片段而非术语"
  },
  {
   "wrong": "发性",
   "right": "始",
   "ctx_before": "英文发表的原",
   "item": "p2-5",
-  "src": "RB7BRXRA"
+  "src": "RB7BRXRA",
+  "inject": false,
+  "why": "任一侧仅 1 字，属句内片段而非术语"
  },
  {
   "wrong": "级",
   "right": "等",
   "ctx_before": "研究背景非小学/初",
   "item": "p2-8",
-  "src": "RB7BRXRA"
+  "src": "RB7BRXRA",
+  "inject": false,
+  "why": "任一侧仅 1 字，属句内片段而非术语"
  },
  {
   "wrong": "述",
   "right": "合",
   "ctx_before": "篇文章纳入我们的叙述性综",
   "item": "p3-2",
-  "src": "RB7BRXRA"
+  "src": "RB7BRXRA",
+  "inject": false,
+  "why": "任一侧仅 1 字，属句内片段而非术语"
  },
  {
   "wrong": "教育",
   "right": "/初等学校",
   "ctx_before": "所定义的初级/小学",
   "item": "p3-8",
-  "src": "RB7BRXRA"
+  "src": "RB7BRXRA",
+  "inject": true
  },
  {
   "wrong": "及",
   "right": "和",
   "ctx_before": "研究报道了多种与食物",
   "item": "p6-3",
-  "src": "RB7BRXRA"
+  "src": "RB7BRXRA",
+  "inject": false,
+  "why": "任一侧仅 1 字，属句内片段而非术语"
  },
  {
   "wrong": "肥胖患病率较高",
   "right": "相关",
   "ctx_before": "接受免费或减价午餐的学生",
   "item": "p6-3",
-  "src": "RB7BRXRA"
+  "src": "RB7BRXRA",
+  "inject": true
  },
  {
   "wrong": "任务",
   "right": "工作",
   "ctx_before": "国际肥胖",
   "item": "p6-4",
-  "src": "RB7BRXRA"
+  "src": "RB7BRXRA",
+  "inject": true
  },
  {
   "wrong": "显著",
   "right": "很大的",
   "ctx_before": "存在",
   "item": "p6-5",
-  "src": "RB7BRXRA"
+  "src": "RB7BRXRA",
+  "inject": false,
+  "why": "右侧边界是虚词，属跨词片段"
  },
  {
   "wrong": "方案",
   "right": "研究",
   "ctx_before": "应在未来研究的",
   "item": "p6-12",
-  "src": "RB7BRXRA"
+  "src": "RB7BRXRA",
+  "inject": true
  },
  {
   "wrong": "“",
   "right": "有哪些资源",
   "ctx_before": "校层面因素具有客观性（即",
   "item": "p7-2",
-  "src": "RB7BRXRA"
+  "src": "RB7BRXRA",
+  "inject": false,
+  "why": "任一侧仅 1 字，属句内片段而非术语"
  },
  {
   "wrong": "获取”的内容",
   "right": "供使用",
   "ctx_before": "面因素具有客观性（即“可",
   "item": "p7-2",
-  "src": "RB7BRXRA"
+  "src": "RB7BRXRA",
+  "inject": true
  },
  {
   "wrong": "背景",
   "right": "情境",
   "ctx_before": "构成性因素和",
   "item": "p7-4",
-  "src": "RB7BRXRA"
+  "src": "RB7BRXRA",
+  "inject": true
  },
  {
   "wrong": "界定",
   "right": "进行划",
   "ctx_before": "分类标准",
   "item": "p3-1",
-  "src": "RL2P7Y6L"
+  "src": "RL2P7Y6L",
+  "inject": true
  },
  {
   "wrong": "与",
   "right": "和",
   "ctx_before": "个体层面",
   "item": "p4-9",
-  "src": "RL2P7Y6L"
+  "src": "RL2P7Y6L",
+  "inject": false,
+  "why": "任一侧仅 1 字，属句内片段而非术语"
  },
  {
   "wrong": "显著",
   "right": "意义的",
   "ctx_before": "与肥胖存在统计学",
   "item": "p5-2",
-  "src": "RL2P7Y6L"
+  "src": "RL2P7Y6L",
+  "inject": false,
+  "why": "右侧边界是虚词，属跨词片段"
  },
  {
   "wrong": "制定",
   "right": "设有",
   "ctx_before": "学校食堂与校园食品店",
   "item": "p6-4",
-  "src": "RL2P7Y6L"
+  "src": "RL2P7Y6L",
+  "inject": true
  },
  {
   "wrong": "作者贡献",
   "right": "具体分工",
   "ctx_before": "作者贡献：",
   "item": "p7-6",
-  "src": "RL2P7Y6L"
+  "src": "RL2P7Y6L",
+  "inject": true
  },
  {
   "wrong": "改变这些",
   "right": "此类",
   "ctx_before": "以及",
   "item": "p1-4",
-  "src": "RVYB59YE"
+  "src": "RVYB59YE",
+  "inject": false,
+  "why": "右侧边界是虚词，属跨词片段"
  },
  {
   "wrong": "是否",
   "right": "有无糖果",
   "ctx_before": "学校周边",
   "item": "p1-5",
-  "src": "RVYB59YE"
+  "src": "RVYB59YE",
+  "inject": false,
+  "why": "左侧边界是虚词，属跨词片段"
  },
  {
   "wrong": "应",
   "right": "有必要",
   "ctx_before": "学校课程",
   "item": "p1-6",
-  "src": "RVYB59YE"
+  "src": "RVYB59YE",
+  "inject": false,
+  "why": "任一侧仅 1 字，属句内片段而非术语"
  },
  {
   "wrong": "活动",
   "right": "实践",
   "ctx_before": "促进健康饮食与身体",
   "item": "p2-5",
-  "src": "RVYB59YE"
+  "src": "RVYB59YE",
+  "inject": true
  },
  {
   "wrong": "第",
   "right": "水平",
   "ctx_before": "（",
   "item": "p4-4",
-  "src": "RVYB59YE"
+  "src": "RVYB59YE",
+  "inject": false,
+  "why": "任一侧仅 1 字，属句内片段而非术语"
  },
  {
   "wrong": "继而导致",
   "right": "并伴随",
   "ctx_before": "",
   "item": "p12-3",
-  "src": "RVYB59YE"
+  "src": "RVYB59YE",
+  "inject": false,
+  "why": "右侧边界是虚词，属跨词片段"
  },
  {
   "wrong": "识别出",
   "right": "发现",
   "ctx_before": "我们",
   "item": "p12-0",
-  "src": "RVYB59YE"
+  "src": "RVYB59YE",
+  "inject": true
  },
  {
   "wrong": "在",
   "right": "对",
   "ctx_before": "学校",
   "item": "p14-1",
-  "src": "RVYB59YE"
+  "src": "RVYB59YE",
+  "inject": false,
+  "why": "任一侧仅 1 字，属句内片段而非术语"
  },
  {
   "wrong": "实践",
   "right": "练习",
   "ctx_before": "参与激发身体",
   "item": "p14-6",
-  "src": "RVYB59YE"
+  "src": "RVYB59YE",
+  "inject": true
  },
  {
   "wrong": "静",
   "right": "久",
   "ctx_before": "",
   "item": "p4-8",
-  "src": "RVYB59YE"
+  "src": "RVYB59YE",
+  "inject": false,
+  "why": "任一侧仅 1 字，属句内片段而非术语"
  },
  {
   "wrong": "按",
   "right": "依",
   "ctx_before": "",
   "item": "p3-2",
-  "src": "XBQXCZJ6"
+  "src": "XBQXCZJ6",
+  "inject": false,
+  "why": "任一侧仅 1 字，属句内片段而非术语"
  },
  {
   "wrong": "推导",
   "right": "提取",
   "ctx_before": "第一阶段：学校情境因素的",
   "item": "p5-5",
-  "src": "XBQXCZJ6"
+  "src": "XBQXCZJ6",
+  "inject": true
  },
  {
   "wrong": "采用",
   "right": "为",
   "ctx_before": "主要分析",
   "item": "p6-0",
-  "src": "XBQXCZJ6"
+  "src": "XBQXCZJ6",
+  "inject": false,
+  "why": "任一侧仅 1 字，属句内片段而非术语"
  },
  {
   "wrong": "可以",
   "right": "或许会",
   "ctx_before": "虽然",
   "item": "p6-4",
-  "src": "XBQXCZJ6"
+  "src": "XBQXCZJ6",
+  "inject": false,
+  "why": "左侧边界是虚词，属跨词片段"
  },
  {
   "wrong": "表明",
   "right": "提示",
   "ctx_before": "这",
   "item": "p16-1",
-  "src": "XBQXCZJ6"
+  "src": "XBQXCZJ6",
+  "inject": true
  },
  {
   "wrong": "与…相关",
   "right": "人们对",
   "ctx_before": "但",
   "item": "p2-3",
-  "src": "I6X98PDN"
+  "src": "I6X98PDN",
+  "inject": false,
+  "why": "左侧边界是虚词，属跨词片段"
  },
  {
   "wrong": "尚",
   "right": "仍",
   "ctx_before": "但与…相关这一现象的原因",
   "item": "p2-3",
-  "src": "I6X98PDN"
+  "src": "I6X98PDN",
+  "inject": false,
+  "why": "任一侧仅 1 字，属句内片段而非术语"
  },
  {
   "wrong": "可重复获得的",
   "right": "多次",
   "ctx_before": "该队列有",
   "item": "p7-1",
-  "src": "I6X98PDN"
+  "src": "I6X98PDN",
+  "inject": false,
+  "why": "左侧边界是虚词，属跨词片段"
  },
  {
   "wrong": "因素",
   "right": "物质",
   "ctx_before": "其他耳毒性",
   "item": "p2-4",
-  "src": "LDCC3QLG"
+  "src": "LDCC3QLG",
+  "inject": true
  },
  {
   "wrong": "亚组",
   "right": "者",
   "ctx_before": "包括对报告从不使用HPD",
   "item": "p8-3",
-  "src": "LDCC3QLG"
+  "src": "LDCC3QLG",
+  "inject": false,
+  "why": "任一侧仅 1 字，属句内片段而非术语"
  },
  {
   "wrong": "未经",
   "right": "初接触",
   "ctx_before": "以相对“",
   "item": "p8-6",
-  "src": "LDCC3QLG"
+  "src": "LDCC3QLG",
+  "inject": true
  },
  {
   "wrong": "虚拟",
   "right": "哑",
   "ctx_before": "我们在模型中加入",
   "item": "p8-6",
-  "src": "LDCC3QLG"
+  "src": "LDCC3QLG",
+  "inject": false,
+  "why": "任一侧仅 1 字，属句内片段而非术语"
  },
  {
   "wrong": "群",
   "right": "批",
   "ctx_before": "对一大",
   "item": "p13-1",
-  "src": "LDCC3QLG"
+  "src": "LDCC3QLG",
+  "inject": false,
+  "why": "任一侧仅 1 字，属句内片段而非术语"
  },
  {
   "wrong": "觉",
   "right": "音",
   "ctx_before": "推测的感",
   "item": "p1-4",
-  "src": "R8B4IFNR"
+  "src": "R8B4IFNR",
+  "inject": false,
+  "why": "任一侧仅 1 字，属句内片段而非术语"
  },
  {
   "wrong": "科",
   "right": "学",
   "ctx_before": "MEE 听力",
   "item": "p6-5",
-  "src": "R8B4IFNR"
+  "src": "R8B4IFNR",
+  "inject": false,
+  "why": "任一侧仅 1 字，属句内片段而非术语"
  },
  {
   "wrong": "峭倾斜",
   "right": "降",
   "ctx_before": "两种陡",
   "item": "p7-0",
-  "src": "R8B4IFNR"
+  "src": "R8B4IFNR",
+  "inject": false,
+  "why": "任一侧仅 1 字，属句内片段而非术语"
  },
  {
   "wrong": "学",
   "right": "图",
   "ctx_before": "听力",
   "item": "p7-3",
-  "src": "R8B4IFNR"
+  "src": "R8B4IFNR",
+  "inject": false,
+  "why": "任一侧仅 1 字，属句内片段而非术语"
  },
  {
   "wrong": "的适用性",
   "right": "表现",
   "ctx_before": "该分类体系",
   "item": "p9-3",
-  "src": "R8B4IFNR"
+  "src": "R8B4IFNR",
+  "inject": false,
+  "why": "左侧边界是虚词，属跨词片段"
  },
  {
   "wrong": "陡降",
   "right": "倾斜",
   "ctx_before": "在",
   "item": "p10-1",
-  "src": "R8B4IFNR"
+  "src": "R8B4IFNR",
+  "inject": true
  },
  {
   "wrong": "在",
   "right": "测量",
   "ctx_before": "",
   "item": "p10-2",
-  "src": "R8B4IFNR"
+  "src": "R8B4IFNR",
+  "inject": false,
+  "why": "任一侧仅 1 字，属句内片段而非术语"
  },
  {
   "wrong": "测量",
   "right": "的",
   "ctx_before": "在倍频程间频率",
   "item": "p10-2",
-  "src": "R8B4IFNR"
+  "src": "R8B4IFNR",
+  "inject": false,
+  "why": "任一侧仅 1 字，属句内片段而非术语"
  },
  {
   "wrong": "证实",
   "right": "表明",
   "ctx_before": "从而",
   "item": "p10-2",
-  "src": "R8B4IFNR"
+  "src": "R8B4IFNR",
+  "inject": true
  },
  {
   "wrong": "在实质上区别于",
   "right": "与",
   "ctx_before": "但六组模型并未包含",
   "item": "p5-4",
-  "src": "TNTJWVYS"
+  "src": "TNTJWVYS",
+  "inject": false,
+  "why": "任一侧仅 1 字，属句内片段而非术语"
  },
  {
   "wrong": "成员",
   "right": "归属",
   "ctx_before": "与该组",
   "item": "p5-5",
-  "src": "TNTJWVYS"
+  "src": "TNTJWVYS",
+  "inject": true
  },
  {
   "wrong": "性",
   "right": "程度的",
   "ctx_before": "其中将受试者的多动",
   "item": "p6-1",
-  "src": "TNTJWVYS"
+  "src": "TNTJWVYS",
+  "inject": false,
+  "why": "任一侧仅 1 字，属句内片段而非术语"
  },
  {
   "wrong": "性",
   "right": "程度",
   "ctx_before": "多动",
   "item": "p6-1",
-  "src": "TNTJWVYS"
+  "src": "TNTJWVYS",
+  "inject": false,
+  "why": "任一侧仅 1 字，属句内片段而非术语"
  },
  {
   "wrong": "成员身份",
   "right": "归属",
   "ctx_before": "作为轨迹组",
   "item": "p9-1",
-  "src": "TNTJWVYS"
+  "src": "TNTJWVYS",
+  "inject": true
  },
  {
   "wrong": "kHz ",
   "right": "千赫",
   "ctx_before": "中未纳入 8 ",
   "item": "p4-2",
-  "src": "833HJBHS"
+  "src": "833HJBHS",
+  "inject": true
  },
  {
   "wrong": "dB",
   "right": "分贝",
   "ctx_before": "足以测至 0 ",
   "item": "p6-1",
-  "src": "833HJBHS"
+  "src": "833HJBHS",
+  "inject": false,
+  "why": "左侧过短或非词"
  },
  {
   "wrong": "kHz",
   "right": "千赫",
   "ctx_before": "影响最小（1 ",
   "item": "p8-2",
-  "src": "833HJBHS"
+  "src": "833HJBHS",
+  "inject": true
  },
  {
   "wrong": "dB ",
   "right": "分贝",
   "ctx_before": "5 ",
   "item": "p9-5",
-  "src": "833HJBHS"
+  "src": "833HJBHS",
+  "inject": true
  },
  {
   "wrong": "混为一谈",
   "right": "混淆",
   "ctx_before": "这些",
   "item": "p9-3",
-  "src": "C5VXX644"
+  "src": "C5VXX644",
+  "inject": true
  },
  {
   "wrong": "会使",
   "right": "与",
   "ctx_before": "",
   "item": "p14-10",
-  "src": "UEU766HN"
+  "src": "UEU766HN",
+  "inject": false,
+  "why": "任一侧仅 1 字，属句内片段而非术语"
+ },
+ {
+  "wrong": "情形",
+  "right": "设定下",
+  "ctx_before": "纵向",
+  "item": "p5-1",
+  "src": "DG5NQS8P",
+  "inject": true
+ },
+ {
+  "wrong": "Unif",
+  "right": "均匀",
+  "ctx_before": "表 3 上半部分的“",
+  "item": "p5-4",
+  "src": "DG5NQS8P",
+  "inject": true
+ },
+ {
+  "wrong": "似然",
+  "right": "可能性",
+  "ctx_before": "表型变化的",
+  "item": "p8-1",
+  "src": "DG5NQS8P",
+  "inject": true
+ },
+ {
+  "wrong": "资助",
+  "right": "基金",
+  "ctx_before": "",
+  "item": "p8-9",
+  "src": "DG5NQS8P",
+  "inject": true
+ },
+ {
+  "wrong": "支持",
+  "right": "资助",
+  "ctx_before": "1 DC010811] ",
+  "item": "p8-9",
+  "src": "DG5NQS8P",
+  "inject": true
  }
 ]

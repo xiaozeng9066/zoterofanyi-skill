@@ -27,7 +27,7 @@ REGION_TYPES = {"table": "table", "image": "figure", "figure": "figure",
 CAP_RE = re.compile(r"^(Table|Figure)\s+[A-Z]?\d+[:.\s]", re.I)
 
 
-def find_caption(page, rect):
+def find_caption(page, rect, text_source="pdf", hyphen_keep=frozenset()):
     """MinerU 常把「表注/图注」并进区域 bbox（实测 Table 1 的 bbox 含标题行）。
     这里用原生文本在该区域内定位标题行，并从裁图范围中切出去，
     标题作为英文 caption 记录，交给翻译层出中文译名（避免图里图外重复英文）。"""
@@ -37,7 +37,11 @@ def find_caption(page, rect):
         return "", rect
     for blk in d.get("blocks", []):
         for ln in blk.get("lines", []):
-            text = "".join(sp["text"] for sp in ln["spans"]).strip()
+            # 规则 81：不能 '' .join(spans)——本类 PDF 的词间空格是独立 span 且 gap 极小，
+            # 直接 join 会得到 'TABLE1Averagedhardandsoft...' 这种无空格表注，
+            # 译文与英文表题都不可读。改用与正文同源的 native_in_rect（含真假空格判据）。
+            text = _region_text({"bbox": ln["bbox"]}, page, text_source, hyphen_keep)
+            text = text.strip()
             if not text or not CAP_RE.match(text):
                 continue
             lb = pymupdf.Rect(ln["bbox"])
@@ -90,6 +94,96 @@ def clean(text):
     return normalize_math(t)
 
 
+def _hyphen_protect(gloss_path):
+    """收集「拆开也仍然是真复合词」的词表：术语表里的连字符词（older-normal / age-related /
+    follow-up / off-diagonal …）。判据只看术语表 key，不猜词性。"""
+    keep = set()
+    try:
+        d = json.loads(Path(gloss_path).read_text(encoding="utf-8"))
+        for a, _b in (d.get("glossary") or []):
+            if "-" in a:
+                keep.add(a.lower())
+    except Exception:
+        pass
+    return keep
+
+
+def _join_lines_dehyphen(lines, protect):
+    """拼接 MinerU 行文本，并处理行末连字符（规则 81b）。
+
+    191 处行末连字符里绝大多数是**排版换行断词**（"phe-notype"、"es-timate"），
+    原样保留会让正文满是伪复合词；但少数是真复合词（"age-related"、"older-normal"），
+    去掉会编出不存在的词、也破坏术语匹配。判据（保守，宁留不错删）：
+      · 右半以大写起首（"Age-|Related"）→ 保留连字符；
+      · 左半 ≤2 字符或以数字结尾（"3-|year"）→ 保留；
+      · 连起来正好是术语表里的词（"older-normal"）→ 保留；
+      · 其余（"phe-|notype"）→ 去掉连字符，恢复成一个词。
+    """
+    out = ""
+    for s in lines:
+        s = s.strip()
+        if not s:
+            continue
+        if out.endswith("-") and len(out) >= 2:
+            m = re.search(r"([A-Za-z0-9]+)-$", out)
+            left = m.group(1) if m else ""
+            right = re.match(r"[A-Za-z0-9]+", s)
+            right = right.group(0) if right else ""
+            keep = (not left or not right
+                    or right[:1].isupper()
+                    or left[-1:].isdigit()
+                    or f"{left.lower()}-{right.lower()}" in protect)
+            out = (out + s) if keep else (out[:-1] + s)
+        else:
+            out = (out + " " + s) if out else s
+    return out
+
+
+def _repair_glued(text):
+    """修复 MinerU 行文本里的「无空格黏连」（规则 81d）。
+
+    现象：PDF 的词间空格是独立 span，MinerU 在个别位置漏掉，抽出
+    "ofBiostatistics"、"Journal oftheAmerican StatisticalAssociation"。
+    audit_document 会把它判成排版错误（本篇 8 条全是这一类）。
+    只做**闭集**修复，不猜词性：
+      · 功能词黏连（ofthe / inthe / tothe / andthe / ofthe …）；
+      · "of + 大写词首"（ofBiostatistics / ofPublic / ofMathematical）；
+      · 形容词性词尾(al|ic|ary|ive|ous) + 大写词首（Statistical|Association）。
+    宁可漏修，不要把一个真词拆成两个。
+    """
+    FUNC = r"(?:of|in|to|and|the|for|with|on|at|by|from|as)"
+    text = re.sub(r"\b(" + FUNC + r")(the|a|an)\b", r"\1 \2", text)
+    text = re.sub(r"\b(of)([A-Z][a-z]{3,})", r"\1 \2", text)
+    text = re.sub(r"\b([A-Za-z]{4,}(?:al|ic|ary|ive|ous))([A-Z][a-z]{4,})", r"\1 \2", text)
+    return text
+
+
+def mineru_line_text(blk, rect, protect=frozenset()):
+    """用 MinerU 的行文本拼段落（规则 81b）。
+
+    适用：PDF 文本层把单词切成碎片（"Soft clas sifica tion"）、字符缺失，PDF 路径无法复原。
+    MinerU 的 span content 是版面重建结果，单词完整；代价是上下标被拍平（π_{ijt} → πijt）。
+    行末连字符按 `_join_lines_dehyphen` 处理，再走 clean() 统一符号。
+    """
+    lines = blk.get("lines") or []
+    chunks = []
+    for ln in lines:
+        s = "".join(sp.get("content", "") for sp in ln.get("spans", []))
+        s = s.strip()
+        if s:
+            chunks.append(s)
+    text = clean(_join_lines_dehyphen(chunks, protect))
+    text = _repair_glued(text)
+    # 字号取该块内出现最多的 span 字号（MinerU 不给字号，用 bbox 高度近似）
+    heights = []
+    for ln in lines:
+        b = ln.get("bbox")
+        if b:
+            heights.append(round(b[3] - b[1], 1))
+    size = max(set(heights), key=heights.count) * 0.75 if heights else 10.0
+    return text, size or 10.0
+
+
 def native_in_rect(page, rect):
     """从原生文本层取该区域的文字，并给出字号统计。
 
@@ -110,7 +204,23 @@ def native_in_rect(page, rect):
             for ln in blk.get("lines", []):
                 for sp in ln["spans"]:
                     if not sp["text"].strip():
-                        continue
+                        # 规则 81：本类 PDF（Biometrics/InDesign 排版）把空格单独编码成 span，
+                        # 宽约 3.35pt，起点与前一词相同、末端与后一词重叠。旧代码直接丢弃，
+                        # 词间空格只能靠下面的 gap 阈值 0.28×字号 兜底；而本 PDF 的真实空格
+                        # gap 只有 0.27×字号（9.5pt 字号下 2.56pt < 阈值 2.66pt），差 0.01 就
+                        # 整篇丢空格（实测空格率 0.062，正常英文 0.15），译文与英文原文都不可读。
+                        # 这里保留为「标记 span」，装配时用「后一词是否真的前移」判真假空格。
+                        if sp["origin"][1] > footer_y:
+                            continue
+                        spans.append({
+                            "base": sp["origin"][1],
+                            "x0": sp["bbox"][0],
+                            "x1": sp["bbox"][2],
+                            "size": sp["size"],
+                            "text": " ",
+                            "is_space": True,
+                        })
+                        continue   # 注意：不把空格字号计入 sizes，否则会顶掉正文字号统计
                     if sp["origin"][1] > footer_y:
                         continue   # 页脚带：页码等
                     # 降部残片：上一行的 g/p/q/y 等降部在本类 PDF 内容流里是独立单字
@@ -180,7 +290,19 @@ def native_in_rect(page, rect):
         line_base = sum(s["base"] for s in full) / len(full) if full else ln["base_ref"]
 
         parts, prev_x1, prev_kind = [], None, "normal"
-        for s in sorted(ln["spans"], key=lambda s: s["x0"]):
+        seq = sorted(ln["spans"], key=lambda s: s["x0"])
+        for idx, s in enumerate(seq):
+            if s.get("is_space"):
+                # 真假空格判据（规则 81）：空格 span 起点恒等于前一词末端，区别在「后一词」。
+                # 实测本篇 4420 个空格 span 呈双峰：(a) 词内伪空格（kerning）后词起点几乎不动，
+                # 间隔 ≈0；(b) 真实词间空格间隔 1.5–3.1pt（9.5pt 字号下约 2.5pt）。
+                # 阈值取 0.13×字号（9.5pt→1.24pt）恰好落在两峰之间。
+                nxt = next((t for t in seq[idx + 1:] if not t.get("is_space")), None)
+                if nxt is not None and (nxt["x0"] - s["x0"]) > 0.13 * line_size:
+                    parts.append(" ")
+                    prev_x1 = s["x1"]      # 让后面的 gap 变负，避免叠加第二个空格
+                    prev_kind = "normal"
+                continue
             dy = s["base"] - line_base
             small = s["size"] < 0.9 * line_size
             if small and dy < -0.15 * line_size:
@@ -203,6 +325,15 @@ def native_in_rect(page, rect):
     return clean("\n".join(out)), size
 
 
+def _region_text(sub, page, text_source, hyphen_keep):
+    """表注/图注/脚注的文字：与正文同源。
+    PDF 文本层损坏的篇目（--text-source mineru）必须走 MinerU 文本，否则表注会带上
+    字符间多空格（实测 "Av erage d h a rd and s oft cl as sifica tion ..."），表注不可读。"""
+    if text_source == "mineru":
+        return mineru_line_text(sub, pymupdf.Rect(sub["bbox"]), hyphen_keep)[0]
+    return native_in_rect(page, pymupdf.Rect(sub["bbox"]))[0]
+
+
 def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("pdf")
@@ -211,12 +342,19 @@ def main():
     ap.add_argument("--out-regions", required=True)
     ap.add_argument("--assets", required=True)
     ap.add_argument("--dpi", type=int, default=300)
+    ap.add_argument("--text-source", choices=["pdf", "mineru"], default="pdf",
+                    help="原文文字来源：pdf=原生文本层（保留上下标，默认）；"
+                         "mineru=MinerU 行文本（单词完整，行内公式下标被拍平）。"
+                         "文本层把单词切碎导致空格率 <0.10 时用 mineru（规则 81b）")
     args = ap.parse_args()
+    text_source = args.text_source
 
     doc = pymupdf.open(args.pdf)
     mid = json.loads(Path(args.middle_json).read_text(encoding="utf-8"))
     assets = Path(args.assets)
     assets.mkdir(parents=True, exist_ok=True)
+    # 连字符保护表：优先用本篇术语表（work/glossary_meta.json），没有则空表（仍按大小写判据）
+    hyphen_keep = _hyphen_protect(assets.parent / "glossary_meta.json")
 
     blocks_out = {"source_pdf": str(args.pdf), "pages": []}
     regions_out = {"source_pdf": str(args.pdf), "pages": []}
@@ -253,11 +391,11 @@ def main():
                 for s2 in subs:
                     st = s2.get("type")
                     if st in ("table_caption", "image_caption"):
-                        cap_en = cap_en or native_in_rect(page, pymupdf.Rect(s2["bbox"]))[0]
+                        cap_en = cap_en or _region_text(s2, page, text_source, hyphen_keep)
                     elif st in ("table_footnote", "image_footnote"):
-                        note_en = note_en or native_in_rect(page, pymupdf.Rect(s2["bbox"]))[0]
+                        note_en = note_en or _region_text(s2, page, text_source, hyphen_keep)
                 if not cap_en and kind in ("table", "figure"):
-                    cap_en, crop_rect = find_caption(page, crop_rect)
+                    cap_en, crop_rect = find_caption(page, crop_rect, text_source, hyphen_keep)
                 if crop_rect.height < 8 or crop_rect.width < 20:
                     crop_rect = rect
                 # 丢弃封面 logo 之类的小图（如 IZA 徽标 54x74pt）：占版面 <2% 一律不收录
@@ -304,8 +442,16 @@ def main():
             if btype not in TEXT_TYPES:
                 continue
 
-            # 文字来自原生文本层，而不是 MinerU 的 OCR
-            text, size = native_in_rect(page, rect)
+            # 原文来源（规则 81b）：默认取原生文本层（含上下标 ^{} 结构，公式更准）；
+            # 但有些排印系统（本例 Biometrics/InDesign）的文本层把单词切成碎片并带真实量级的
+            # 间距，PDF 路径无论怎么调阈值都复原不出单词（"Soft clas sifica tion"），此时
+            # 改用 MinerU 的行文本（按 OCR/版面重建，单词完整），代价是行内公式的下标被拍平。
+            # 判据：PDF 路径产出文本的「碎词率」过高时改走 MinerU —— 由调用方 --text-source 指定，
+            # 或 auto 模式按空格率自动判定（<0.10 视为文本层损坏）。
+            if text_source == "mineru":
+                text, size = mineru_line_text(blk, rect, hyphen_keep)
+            else:
+                text, size = native_in_rect(page, rect)
             if not text:
                 continue
             base = rect.y0 + size * 0.8

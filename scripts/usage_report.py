@@ -45,14 +45,15 @@ def _work_model(workdir) -> str | None:
 
 
 def _pdf_pages(workdir) -> int | None:
-    """从 work 目录自动数源 PDF 页数，免去 --pages 手动填。
+    """从工作目录自动数源 PDF 页数，免去 --pages 手动填。
+    实测：调用方通常传 `<work>/work`，而 source.pdf 在 `<work>/`（上一级），所以两级都要找。
     找不到 PDF 或读不了就返回 None，交给上层按「未记录」处理，不报错。"""
     cands = []
     w = Path(workdir)
-    cands.append(w / "source.pdf")
-    cands.append(w / "work" / "source.pdf")
-    cands += sorted(w.glob("*.pdf")) if w.is_dir() else []
-    cands += sorted((w / "work").glob("*.pdf")) if (w / "work").is_dir() else []
+    for base in (w, w.parent, w / "work"):
+        cands.append(base / "source.pdf")
+        if base.is_dir():
+            cands += sorted(base.glob("*.pdf"))
     seen = set()
     for p in cands:
         p = Path(p)
@@ -151,7 +152,11 @@ def main():
         except Exception:
             continue
         for x in d.get("fixes", []):
+            # 两种 fix 形态：整段重写 {"id","zh"} 与最小片段 {"id","edits":[{find,replace,reason}]}。
+            # patch 模式（默认）只有 edits，旧逻辑只认 "zh" 会把审校输出算成 0（实测本篇 0.0k）。
             rv_out += len(x.get("zh", "")) + len(x.get("reason", ""))
+            for e in (x.get("edits") or []):
+                rv_out += len(e.get("replace", "")) + len(e.get("reason", ""))
 
     t_in = tr_in / EN_CPT + rv_in / EN_CPT
     t_out = tr_out / ZH_CPT + rv_out / ZH_CPT

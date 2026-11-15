@@ -77,6 +77,20 @@ def check_extraction(case, verbose):
             "found_forbidden": [s for s in (case_assumptions(case).get("must_not_contain") or []) if s in text]}, []
 
 
+def check_memory(case, tmp, verbose):
+    """规则 83：回流出的词对里，哪些可当术语注入、哪些只是跨词切片。"""
+    run("build_memory.py", "--changes", str(case / "changes.json"),
+        "--tm", str(tmp / "tm"), "--report", str(tmp / "mem.json"))
+    f = tmp / "mem.json"
+    if not f.exists():
+        return {}, ["build_memory.py 没有产出判定报告"]
+    rep = json.loads(f.read_text(encoding="utf-8"))
+    return {"edits": rep.get("edits", 0),
+            "term_fixes_inject": len(rep.get("injected") or []),
+            "must_keep": [list(x) for x in (rep.get("injected") or [])],
+            "must_reject": [list(x[:2]) for x in (rep.get("skipped") or [])]}, []
+
+
 def case_assumptions(case):
     exp = json.loads((case / "expected.json").read_text(encoding="utf-8"))
     return exp.get("assertions", {})
@@ -101,6 +115,7 @@ def main():
         # 临时产物放可写目录，避免只读安装目录（全局 skill 目录）与受限 temp
         tmp = make_tmpdir(f"zbf-{case.name}-")
         got, errs = (check_full(case, tmp, a.pdf_dir, a.verbose) if kind == "full"
+                     else check_memory(case, tmp, a.verbose) if kind == "memory"
                      else check_extraction(case, a.verbose))
         # 只比 expected 里声明过的键，便于以后扩充
         diffs = []
@@ -124,9 +139,12 @@ def main():
         if diffs:
             failed += 1
         print(f"  [{status}] {case.name:<24} " + (" | ".join(diffs)[:150] if diffs else
-              f"blocks={got.get('blocks')} fn={got.get('footnotes')} "
-              f"qa={got.get('qa', {}).get('fail')} rules={got.get('rules', {}).get('fail')} "
-              f"audit={got.get('audit', {}).get('fail')}"))
+              (f"edits={got.get('edits')} 可注入={got.get('term_fixes_inject')}"
+               f" 跳过={len(got.get('must_reject') or [])}"
+               if kind == "memory" else
+               f"blocks={got.get('blocks')} fn={got.get('footnotes')} "
+               f"qa={got.get('qa', {}).get('fail')} rules={got.get('rules', {}).get('fail')} "
+               f"audit={got.get('audit', {}).get('fail')}")))
         if a.verbose and diffs:
             for d in diffs:
                 print(f"        {d}")

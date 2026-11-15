@@ -141,9 +141,38 @@ def write_guide(work, meta_path):
     """生成译前指南：本篇术语表 + 历史词级纠正 + 整句错误模式 + 硬规则。"""
     gm = load_json(meta_path, {}) or {}
     gl = gm.get("glossary") or []
-    tf = load_json(SKILL / "tm" / "term_fixes.json", {}) or {}
+    tf_all = load_json(SKILL / "tm" / "term_fixes.json", {}) or {}
     ep = load_json(SKILL / "tm" / "error_patterns.json", {}) or {}
     title = gm.get("title_en") or "本文"
+    # 规则 83：① 只注入 build_memory.mark() 判为可注入的条目；
+    # ② 本篇术语表优先于跨篇记忆——历史改法与本篇术语表撞车时，听术语表的。
+    # 跨词切片（「由 → 以」「分类 → 项」）写成「必须遵守」会把正常句子改成病句；
+    # 「似然 → 可能性」「dB → 分贝」这类也只在一篇的某个语境下成立，不能全局套用。
+    gl_zh = set()
+    for row in gl:
+        if isinstance(row, (list, tuple)) and len(row) >= 2:
+            gl_zh.add(str(row[1]))
+        elif isinstance(row, dict):
+            gl_zh.add(str(row.get("zh") or ""))
+    gl_zh.discard("")
+
+    def clash(w):
+        w = str(w or "")
+        if not w:
+            return False
+        return any(w == z or w in z or z in w for z in gl_zh)
+
+    if isinstance(tf_all, list):
+        tf, n_archived, n_clash = [], 0, 0
+        for x in tf_all:
+            if not x.get("inject", True):
+                n_archived += 1
+            elif clash(x.get("wrong")):
+                n_clash += 1
+            else:
+                tf.append(x)
+    else:
+        tf, n_archived, n_clash = tf_all, 0, 0
     L = ["# 翻译指南 · %s" % title, "",
          "> 本文件由 pipeline.py 自动生成，含本篇术语表与历史审校记忆。逐条遵守。", "",
          "## 一、本篇术语表（严格统一，value 是最小可匹配词）", ""]
@@ -152,7 +181,12 @@ def write_guide(work, meta_path):
             L.append("- %s -> %s" % (row[0], row[1]))
         elif isinstance(row, dict):
             L.append("- %s -> %s" % (row.get("en") or row.get("term"), row.get("zh")))
-    L += ["", "## 二、历史审校词级纠正（tm/term_fixes.json，必须遵守）", "",
+    L += ["", "## 二、历史审校词级纠正（参考示例，不是全局替换规则）", "",
+          "> 可用 %d 条（另有 %d 条跨词切片已留档、%d 条与本篇术语表冲突已让位，均不注入）。" %
+          (len(tf), n_archived, n_clash),
+          "> 这些是**其他论文**审校时把 A 改成 B 的实例，只在语境相同时参考；",
+          "> 与本篇术语表冲突的以术语表为准；单位（dB / kHz）、统计术语（似然、置信区间）、",
+          "> 机构缩写一律按本篇术语表或保留原文，**不得**照搬下面某一条去全局替换。", "",
           json.dumps(tf, ensure_ascii=False, indent=1), "",
           "## 三、历史整句错误模式（tm/error_patterns.json，避免重犯）", "",
           json.dumps(ep, ensure_ascii=False, indent=1), "",
@@ -244,7 +278,7 @@ def cmd_prepare(a):
     print("\n[2/8] 结构化抽取（正文块 / 区域 / 裁图）")
     sh([PY, HERE / "extract_mineru.py", pdf, middle,
         "--out-blocks", blocks, "--out-regions", regions, "--assets", assets,
-        "--dpi", a.dpi], tail=4)
+        "--dpi", a.dpi, "--text-source", a.text_source], tail=4)
 
     print("\n[3/8] 脚注抽取")
     sh([PY, HERE / "extract_footnotes.py", pdf, "--out", fn], tail=3)
@@ -635,6 +669,9 @@ def main():
     p.add_argument("--no-mineru", action="store_true", help="复用已有 MinerU 输出")
     p.add_argument("--force", action="store_true", help="忽略已有输出，全部重跑")
     p.add_argument("--model", default="", help="本篇实际用的 LLM 模型名（落盘到 work/model.txt，供用量自报自动读取）")
+    p.add_argument("--text-source", choices=["pdf", "mineru"], default="pdf",
+                   help="原文文字来源：pdf=原生文本层（默认，保留上下标）；"
+                        "mineru=MinerU 行文本（PDF 文本层把单词切碎时用，见规则 81b）")
     p.set_defaults(func=cmd_prepare)
 
     c = sub.add_parser("check", help="合并译文 -> QA/规则 -> 审校分块与清单")

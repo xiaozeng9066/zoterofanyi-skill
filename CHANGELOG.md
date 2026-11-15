@@ -8,6 +8,75 @@
 > v2.2–v2.7 的完整迭代史只存于本机离线备份
 > `~/.workbuddy/backups/zoterofanyi-skill-archive-20261114.bundle`（原归档库已于 2026-11-14 删除）。
 
+## v2.27 — 2026-11-15 · Yang 2024（Biometrics，9 页）：原文文本层不可信 + 校验器尺子也会错 + 记忆回流分层（规则 81 / 82 / 83）
+
+**篇目**
+
+Ce Yang 等 (2024). *Soft Classification and Regression Analysis of Audiometric Phenotypes of
+Age-Related Hearing Loss*. Biometrics 80(1): ujae013. Zotero `DG5NQS8P`，源 PDF 9 页。
+
+**指标实测**
+
+| 指标 | 值 |
+|---|---|
+| 块数 / 译条 / 中文字符 | 82 / 72 / 8443 |
+| Gate1 · Gate2 | 0 BLOCK 0 WARN · 0 BLOCK 0 WARN |
+| qa FAIL·WARN | 0 · 8（初检 4 · 27） |
+| rules FAIL·WARN | 0 · 0（初检 0 · 29） |
+| 审校修订 | 23 处（修订率 32%，偏高，见下） |
+| 成品 | 31 页 / 1.45 MB / `render_route: html`（非降级） |
+| 耗时 | MinerU 0.4 分钟；翻译 0.8 分钟；审校 5.2 分钟 |
+| 实际费用 | **未记录**（须从服务商账单页抄，不用估算冒充） |
+
+**学到的东西（三条新规则）**
+
+1. **规则 81：原文文本层不可信时换文本源，别在坏文本层上猜词**。本篇 PDF 空格率 0.062
+   （正常 0.14–0.16），正文成 `Softclassificationandregressionanalysisof…`。根因是 InDesign
+   把空格单列成 span、又把单词切碎，碎片 gap（1.5–2pt）与真实词间空格（1.5–3.1pt）量级重叠，
+   **PDF 路径原理上复原不了单词**。修法是 `--text-source mineru` 用行文本；代价是行内公式下标被拍平。
+   一并补：空格 span 真假判据、行末断字还原判据（本篇 191 处，`es-timate` 曾被误保护）、
+   跨页续句允许跳过 ≤3 个公式/图表块、文档大标题按 `mineru_type=title` 认、
+   MinerU 漏空格黏连闭集修复（8 → 3 处）。
+2. **规则 82：校验器的尺子也会错，先定性再改译文**。初检 4 个 qa FAIL **没有一条是译文错**：
+   `1 in 3`→「三分之一」、`more than 1`→「一种以上」、公式被拍平后译文反而更规范。
+   21 条术语 WARN 里还有「「OR」应为「OR」」这种自相矛盾。修法全在检查器与术语表：
+   数字 1 的中文数词等价、公式密集块数字降 WARN、保留英文条目跳过校验、术语表 value 取最小可匹配词。
+   **踩坑**：只改 `glossary_meta.json` 不生效——`check` 会从 `skeleton_fn.json` 重建 bilingual，
+   必须 `apply_meta.py` 注入回 skeleton（WARN 27 → 8，rules 29 → 10 就靠这一步）。
+3. **规则 83：翻译记忆回流要分层**。`build_memory.py` 用字符级 diff 抽「错译→正译」，
+   而译前指南把它原样标成「必须遵守」。本篇 13 条里 `由 → 以`、`分类 → 项`、`间 → 下二者`
+   都是**句内切片**，当全局替换指令下发就是把句子改坏；历史 82 条里同类有 51 条。
+   加两道闸：结构可注入性（1 字侧 / 虚词边界 / 含数字 → 只留档不注入）+ 本篇术语表优先
+   （`wrong` 与术语表 `zh` 互相包含即让位），指南措辞改为「参考示例，同语境才照做」。
+
+**改动清单**
+
+- `scripts/extract_mineru.py`：空格 span 保留与真假判据、`--text-source mineru` 行文本装配、
+  `_hyphen_protect` / `_join_lines_dehyphen`、`mineru_line_text`、`_repair_glued`、`_region_text`（表注/图注同步换源）。
+- `scripts/assemble.py`：跨页续句允许跳过 ≤3 个非正文块；标题按 `mineru_type` 认。
+- `scripts/qa.py`：数字 1 的中文数词、公式块数字降 WARN、保留英文条目跳过术语校验。
+- `scripts/build_memory.py`：`injectable()` / `mark()` / `--report`（机器可读判定，供回归用）。
+- `scripts/pipeline.py`：`write_guide()` 只注入可注入条目 + 术语表冲突让位 + 措辞改为参考示例；
+  `prepare` 支持 `--model`、`--text-source`。
+- `scripts/usage_report.py`：`_pdf_pages` 查上一级目录、`rv_out` 认 `edits[].replace`、模型名四级兜底。
+- `scripts/regression_suite.py` / `snapshot_case.py`：新增 `kind: memory` 案例类型。
+- `SKILL.md`：规则 81 / 82 / 83，规则 80 补两处 v2.27 实测补丁。
+- `tm/`：词级纠正 82 → 87（可注入 36 / 留档 51）；整句模式 9 → 10。
+- `fixtures/mem_inject`（公开）+ `fixtures_full/mem_inject`：规则 83 的合成用例（8 条 patch → 2 注入 / 5 跳过）。
+
+**验证**
+
+- 黄金集：公开合成版 **16/16 PASS**，本机全强度版 **19/19 PASS**（各新增 `mem_inject`，此前已加 `yang2024_full` / `yang2024_extract`）。
+- 反向验证：把「应注入」的 `峭倾斜 → 陡降` 写进 `must_reject`，`regression_suite.py` 报 FAIL——用例会拦，不是永远 PASS。
+- 成品回归 `regression_check.py` 六项全 OK；目视 p1 / p6 / p7 / p8 四页，版式良好。
+- Zotero 挂回：附件 `EPK4DF3G`（1,450,207 字节，`imported_file` 落盘一致）+ 笔记 `CTD9EZ3F`。
+
+**结论**
+
+本篇「效果差」的风险全部来自**原文本身**，不是翻译：换文本源后单词完整、空格率回到 0.1578。
+qa 那 4 条 FAIL 也全是尺子过严。**修订率 32%（23/72）偏高**，说明译前指南对统计领域的覆盖还不够，
+下一篇起应把「软分类 / 累积 logit / 混合模型」这类术语更早进术语表，而不是靠审校兜。
+
 ## v2.26 — 2026-11-15 · 「手动填写」能自动的一律自动，不能自动的降到最低成本（规则 80）
 
 **背景**
