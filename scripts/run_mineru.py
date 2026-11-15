@@ -17,10 +17,27 @@ import sys
 from pathlib import Path
 
 
+def _cfg_mineru_python() -> str | None:
+    """优先读 local_config.json 的 mineru_python（detect_env.py 探测结果），换机不靠硬编码。"""
+    try:
+        import json
+        cfg = json.loads((Path(__file__).resolve().parent.parent / "local_config.json")
+                         .read_text(encoding="utf-8"))
+        mp = cfg.get("mineru_python")
+        if mp and Path(mp).exists():
+            return mp
+    except Exception:
+        pass
+    return None
+
+
 def mineru_python() -> str:
     override = os.environ.get("MINERU_PY")
     if override and Path(override).exists():
         return override
+    from_cfg = _cfg_mineru_python()
+    if from_cfg:
+        return from_cfg
     home = Path(os.path.expanduser("~"))
     for cand in (home / ".dsh/runtimes/mineru/venv310/Scripts/python.exe",
                  home / ".dsh/runtimes/mineru/venv310/bin/python"):

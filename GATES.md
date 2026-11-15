@@ -128,6 +128,33 @@ tag 不重复 / README 同源 / 公开模式隐私）一项不过就不提交。
 所以「不同电脑间后续运行」的唯一真正变量是**资源门禁**，其余三层由 git 保证一致。
 换机口诀：**`bootstrap.py --remote <url>` → `detect_env.py` → `gate.py` → 补齐 BLOCK → 开跑。**
 
+### 体检必须自动化（v2.22）
+
+人工跑 `gate.py` 一定会忘、会漏。所以从 v2.22 起，**`bootstrap.py` 收尾会自动跑完整个体检链**：
+`detect_env` → `paths --check` → `gate.py resources` → 黄金集，并把资源门禁的未就绪项直接
+汇总进引导报告（`[资源门禁] 未就绪 N 项：…`）。用户只做一件事：
+
+```bash
+python scripts/bootstrap.py --remote https://github.com/xiaozeng9066/zoterofanyi-skill.git
+#   看报告里的 [本地化] / [资源门禁] 段，照「下一步」补齐即可，无需记得再跑 gate。
+```
+
+`gate.py` 仍保留独立入口，供日常复检（`gate.py` / `gate.py resources` / `--offline`）。
+
+### 换模型 / 换客户端不能靠隐式环境假设（v2.22）
+
+「换台电脑」和「换个对话客户端 / 换个模型」是同一类风险的两种表现：**脚本里写死了对当前
+环境的假设**。真正的雷不是 GPU 有没有，而是这些散落的主链路硬编码：
+
+| 隐式假设 | 换环境后果 | v2.22 修复 |
+|---|---|---|
+| `pipeline.py`/`run_mineru.py` 写死 `~/.dsh/runtimes/mineru/venv310/...` | 换机找不到 MinerU，抽取直接崩 | 先读 `local_config.json` 的 `mineru_python`，再回退 |
+| `build_pdf.py` 只认某浏览器路径 | 换机/换浏览器渲染失败 | 已有 `find_edge()` 多路径探测 + `EDGE_BIN` 兜底 |
+| `usage_from_sessions.py` 依赖 `~/.dsh/sessions/`（DSH 专属） | 换客户端费用统计静默失效 | 已标注「非账单口径」，属可降级项 |
+
+**原则：脚本需要解释器/浏览器/工具时，一律「读 local_config 探测结果 → 环境变量 → 常见路径 → 报错」，**
+禁止写死本机绝对路径。`detect_env.py` 探测了却没被主链路消费，就是「换环境就崩」的根因。
+
 ---
 
 ## 八、自检清单（每次迭代收尾，5 秒对账）

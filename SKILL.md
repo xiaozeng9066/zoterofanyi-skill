@@ -798,6 +798,15 @@ Dimitrov 2026（19 页 / 11 图 3 表；翻译 11 块 + 审校 12 块；共 353 
     - **换机口诀**：`bootstrap.py --remote <url>` → `detect_env.py` → `gate.py` → 补齐 BLOCK → 开跑。
       四类门禁里只有**资源门禁不随 git 走**（本机路径/GPU/代理），其余三层由版本资产保证一致，
       所以换机真正要重新体检的只有资源这一层。
+    - **体检必须自动化，不靠人工记得跑**（v2.22）：`bootstrap.py` 的 `localize()` 收尾时
+      **自动**跑完 `detect_env` → `paths --check` → `gate.py resources` → 黄金集，把资源门禁的
+      未就绪项直接汇总进引导报告（`[资源门禁] 未就绪 N 项：…`）。用户只需一条
+      `bootstrap.py --remote <url>`，看完报告照「下一步」补齐即可，不存在「忘了跑 gate」。
+    - **换模型 / 换客户端不能靠当前环境隐式假设**（v2.22）：脚本里凡是「需要某解释器/浏览器」
+      的地方，一律**先读 `local_config.json` 的探测结果**（`mineru_python`/`browser`/`python`），
+      读不到才回退环境变量 → 常见路径 → 报错。禁止在 `pipeline.py`/`run_mineru.py` 等主链路
+      脚本里写死 `~/.dsh/runtimes/...` 之类的本机绝对路径——`detect_env` 探测了却没被消费，
+      正是「换台电脑就崩」的直接根因（v2.22 已把 `mineru_python` 的硬编码改成配置优先）。
     - 禁止：把门禁结论写死在文档里当常量（每台机器不同）；新增门禁脚本不接进 `gate.py`，
       让它继续散落在「记得才跑」的灰色地带。
 

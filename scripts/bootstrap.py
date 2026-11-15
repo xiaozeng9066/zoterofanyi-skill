@@ -36,6 +36,7 @@ DETECT = ROOT / "scripts" / "detect_env.py"
 PATHS = ROOT / "scripts" / "paths.py"
 REGRESSION = ROOT / "scripts" / "regression_suite.py"
 SYNC_NOW = ROOT / "scripts" / "sync_now.py"
+GATE = ROOT / "scripts" / "gate.py"
 FIXTURES = ROOT / "fixtures"
 
 
@@ -202,7 +203,23 @@ def localize(skip_regression: bool) -> dict:
         "machine": cfg.get("machine"),
         "warnings": cfg.get("warnings", []),
         "regression": "SKIPPED",
+        "gates": None,
     }
+    # 资源门禁统一体检（换机最关心的：软件/配置/Zotero/git/代理/GPU 缺什么）
+    if GATE.is_file():
+        try:
+            g = run([sys.executable, str(GATE), "resources", "--offline", "--json"],
+                    check=False, timeout=120)
+            gate_json = json.loads(g.stdout) if g.stdout.strip() else {}
+            result["gates"] = {
+                "exit": g.returncode,
+                "blocks": [r.get("key") for r in gate_json.get("results", [])
+                           if r.get("status") == "BLOCK" and r.get("required")],
+                "warns": [r.get("key") for r in gate_json.get("results", [])
+                          if r.get("status") == "WARN"],
+            }
+        except Exception as exc:
+            result["gates"] = {"exit": -1, "error": str(exc)}
     py = cfg.get("python")
     if not skip_regression and py and Path(py).exists() and REGRESSION.is_file():
         proc = subprocess.run(
@@ -259,11 +276,24 @@ def main() -> int:
     print(f"         组件检查 {'全齐' if loc['check_ok'] else '有缺项'} · 黄金集 {loc['regression']}")
     if loc.get("regression_tail"):
         print("         " + loc["regression_tail"].replace("\n", "\n         "))
+    if loc.get("gates"):
+        g = loc["gates"]
+        blocks = g.get("blocks") or []
+        warns = g.get("warns") or []
+        if blocks:
+            print(f"         [资源门禁] 未就绪 {len(blocks)} 项：{', '.join(blocks)}")
+        elif warns:
+            print(f"         [资源门禁] 基本就绪，待处理 {len(warns)} 项：{', '.join(warns)}")
+        else:
+            print("         [资源门禁] 全部就绪")
+        if g.get("error"):
+            print("         [资源门禁] 探测异常：" + g["error"])
     for w in loc["warnings"]:
         print("  待处理 - " + w)
     print("\n下一步：")
     print('  eval "$(python scripts/paths.py --shell bash)"   # 取到 $PY/$S/$K/$W')
     print("  python scripts/paths.py --check                 # 环境自检")
+    print("  python scripts/gate.py                          # 四类门禁一键体检")
     print("  python scripts/sync_now.py --start              # 每次开工前拉最新 skill")
     print("  python scripts/sync_now.py --status             # 看本地 / 云端是否对齐")
     print("  python scripts/iterate_commit.py --status       # 收尾前看版本坐标（提交后自动推送）")

@@ -171,14 +171,26 @@ def write_guide(work, meta_path):
 
 
 def find_reportlab_python():
-    """找一个能 import reportlab 的解释器（本机 MinerU venv 自带）。"""
-    cands = [
+    """找一个能 import reportlab 的解释器。
+
+    优先级：local_config.json 的 mineru_python（detect_env 探测，换机最稳）
+    → 历史硬编码路径（旧机兼容）→ 当前 $PY。每条都先验证能 import reportlab。
+    """
+    cands = []
+    try:
+        cfg = json.loads((SKILL / "local_config.json").read_text(encoding="utf-8"))
+        mp = cfg.get("mineru_python")
+        if mp:
+            cands.append(mp)
+    except Exception:
+        pass
+    cands += [
         os.path.expanduser("~/.dsh/runtimes/mineru/venv310/Scripts/python.exe"),
         os.path.expanduser("~/.dsh/runtimes/mineru/venv/Scripts/python.exe"),
         PY,
     ]
     for c in cands:
-        if not os.path.isfile(c):
+        if not c or not os.path.isfile(c):
             continue
         try:
             subprocess.run([c, "-c", "import reportlab"], capture_output=True, timeout=30, check=True)

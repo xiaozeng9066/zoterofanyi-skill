@@ -8,6 +8,28 @@
 > v2.2–v2.7 的完整迭代史只存于本机离线备份
 > `~/.workbuddy/backups/zoterofanyi-skill-archive-20261114.bundle`（原归档库已于 2026-11-14 删除）。
 
+## v2.22 — 2026-11-15 · 体检自动化 + 去隐式环境硬编码（规则 75 补强）
+
+**背景**
+
+用户追问两个「会不会自动」：① 换机后会不会自动跑 `gate.py resources`（人工跑一定会忘）；
+② 换模型/换对话框后会不会又崩。两者同根：体检没接进引导、主链路脚本写死了当前环境的绝对路径。
+
+**改动**
+
+- `bootstrap.py`：`localize()` 收尾**自动**跑 `gate.py resources --offline --json` 并汇总进引导报告，
+  打印「[资源门禁] 未就绪 N 项 / 基本就绪 / 全部就绪」。换机一条 `bootstrap.py --remote` 即完成体检。
+- `pipeline.py` / `run_mineru.py`：`find_reportlab_python()` / `mineru_python()` 改为**先读
+  `local_config.json` 的 `mineru_python`**（detect_env 探测结果），读不到才回退环境变量 → 常见路径。
+  消除「探测了却没被消费」的换机地雷（`~/.dsh/runtimes/...` 硬编码）。
+- `GATES.md`：第七节补「体检必须自动化」「换模型/客户端不能靠隐式环境假设」两张表。
+- `SKILL.md` 规则 75 补两条硬约束（体检自动、主链路禁止写死本机路径）。
+
+**指标**：无翻译改动，纯可移植性加固。本机 `bootstrap.py` 报告「[资源门禁] 全部就绪」，
+`run_mineru.py` / `pipeline.py` 均正确从配置读到 mineru_python。
+
+**学到**：可移植性 =「探测结果被主链路消费」+「体检自动化」，两者缺一就回到「换机靠记性/靠运气」。
+
 ## v2.21 — 2026-11-15 · 门禁统一入口 gate.py + 总纲 GATES.md（规则 75）
 
 **背景**
