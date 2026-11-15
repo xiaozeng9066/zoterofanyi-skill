@@ -194,16 +194,20 @@ $MIDDLE = (Get-ChildItem "$W\work\mineru" -Recurse -Filter "*_middle.json" | Sel
 #      %USERPROFILE%\.dsh\dsh-runtimes\dsh-primary-runtime\dependencies\python\python.exe
 
 # 10) 用量与费用（每篇必做；跨客户端统一用 usage_report.py，DSH 环境才用 usage_from_sessions.py）
-#    ★ 换模型/换客户端后：模型名必须显式传 --model，不得留空；实际费用留 --actual-cost，勿估算冒充
-& $PY "$S\usage_report.py" "$W\work" --pages <页数> --model "<实际模型名，如 deepseek-flash / hunyuan / hy4>" `
-    --out "$W\reports\usage_artifacts.md"
+#    ★ 页数/模型名/耗时已自动（页数数 PDF、模型名读 work/model.txt、耗时按产物 mtime），
+#      实际费用只能从服务商账单页抄，用 --actual-cost 传，勿估算冒充
+#    ★ 模型名在 prepare 时自动落盘：pipeline.py prepare 传 --model "<实际模型名>"，之后这里无需再传
+& $PY "$S\usage_report.py" "$W\work" --out "$W\reports\usage_artifacts.md"
 #    → 产物字符折算估算（英文 3.2 / 中文 1.6 字符每 token），只含翻译+审校，不含编排；标注「非账单口径」
 #    → 仅 DSH 环境（有 ~/.dsh/sessions）才用下面这条拿「会话口径＝账单口径」：
-& $PY "$S\usage_from_sessions.py" --workdir $W --item-key <Zotero条目key> --pages <页数> `
+& $PY "$S\usage_from_sessions.py" --workdir $W --item-key <Zotero条目key> `
     --model <实际模型名> [--until <交付时刻 ISO>] `
     --out "$W\reports\usage.md" --json "$W\reports\usage.json"
 #    → 从 ~/.dsh/sessions 里把「主会话 + 其全部子代理会话」的 usage 加起来
 ```
+
+> 注：`prepare` 阶段推荐加 `--model "<当前模型>"` 把模型名写进 `work/model.txt`（规则 80），
+> 之后 `usage_report.py` 缺省 `--pages`/`--model` 也会自动出「页数」「模型」两栏，无需人工填。
 
 ## 必须遵守的工程规则（全部是实测踩坑换来的）
 
@@ -309,8 +313,8 @@ $PY = "$HOME\.dsh\runtimes\zb-translate\venv\Scripts\python.exe"
   （每个附件都有 `title` 字段、storage 文件存在且非空、笔记有标题与正文）；
 - **交付时必须在对话里直接报本篇的用时 / token / 费用**（用户 2026-10-18 明确要求，不等追问）：
   **统一用 `usage_report.py` 口径**（跨客户端通用），跑
-  `usage_report.py "$W/work" --pages <页数> --model "<实际模型名>" --out "$W/reports/usage_artifacts.md"`，
-  报「翻译+审校 token（估算） / 各段耗时 / **模型名** / 可能费用」，
+  `usage_report.py "$W/work" --out "$W/reports/usage_artifacts.md"`（页数/模型名/耗时已自动，
+  见规则 80），报「翻译+审校 token（估算） / 各段耗时 / **模型名** / 可能费用」，
   并**明确标注这是产物估算、非账单口径**（规则 72）；实际费用只能由用户提供 `--actual-cost`，
   拿不到就写「未记录」，**不得用估算冒充**。`usage_from_sessions.py` 依赖 DSH 会话日志，
   **只在 DSH 环境可用**，WorkBuddy/换客户端后一律走 `usage_report.py`。
@@ -875,6 +879,26 @@ Dimitrov 2026（19 页 / 11 图 3 表；翻译 11 块 + 审校 12 块；共 353 
       模型栏「未记录」或渲染路线缺失 = 没走完这条规则。
     - 禁止：换模型/换客户端后仍用 `deepseek-flash` 的写死默认值；把「回退 reportlab」当正常路线
       不标注；交付时因「跑不通 usage_from_sessions」就干脆不报用量。
+
+80. **「手动填写」能自动的一律自动，不能自动的降到最低成本并说清为什么**（v2.26）：
+    - 起因：用户反馈「手动填写很困难，为何不能自动填」。此前 `usage_report.py` 的 `--pages`、
+      `--model` 要人传；`local_config.json` 的 `llm.model` 字段在 v2.25 就建了却**从没人/机制填**，
+      等于一个空壳。真问题是：脚本层拿不到「当前会话主模型」这个信息（WorkBuddy 环境变量里没有，
+      只有 `WORKBUDDY_VLM_MODEL` 那个视觉模型），所以模型名**必须**由「派子代理那一刻」的 Agent 落盘。
+    - 落地（按「能自动 → 半自动 → 不能自动」三级）：
+      * **页数自动数**：`usage_report.py` 缺省 `--pages` 时用 PyMuPDF 从 `<work>/source.pdf`
+        自动读 `page_count`，读不到才记「未记录」，不再要求人传。
+      * **模型名自动落盘 + 四级兜底**：`pipeline.py prepare` 新增 `--model`，把值写进
+        `<work>/model.txt`（只有派翻译子代理那一刻的 Agent 知道当前模型）；`usage_report.py`
+        缺省 `--model` 时按「命令行 > work/model.txt > local_config.json.llm.model」四级解析，
+        三级全空才 `[WARN]`。换模型/换客户端后，Agent 只需在 `prepare` 时多传一个 `--model`。
+      * **实际费用不可程序化获取**：只有服务商账单页知道，任何脚本都拿不到（除非接账单 API）。
+        这是**唯一**必须人工的一项，已降到「抄一个数」——`--actual-cost` 传一个数即可，
+        拿不到就写「未记录」，绝不拿估算冒充。
+    - 判据：交付时 `usage_report.py` 不带 `--pages` / `--model` 也能出「页数」与「模型」两栏有值
+      （前提是 `prepare` 传了 `--model`）；「实际费用」栏应显示「未记录」或一个真实账单数，而不是估算。
+    - 禁止：给 `usage_report.py` 加「猜模型名」的启发式（环境变量里没有主模型信息，猜了会错）；
+      把「实际费用」用 token 估算值冒充；因为「填起来麻烦」就干脆不报用量（违背规则 79 ①）。
 
 ## 成本控制（Dimitrov 2026 实测：会话口径 ¥2.44/篇，19 页）
 

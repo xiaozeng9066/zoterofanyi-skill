@@ -8,6 +8,33 @@
 > v2.2–v2.7 的完整迭代史只存于本机离线备份
 > `~/.workbuddy/backups/zoterofanyi-skill-archive-20261114.bundle`（原归档库已于 2026-11-14 删除）。
 
+## v2.26 — 2026-11-15 · 「手动填写」能自动的一律自动，不能自动的降到最低成本（规则 80）
+
+**背景**
+
+用户反馈「手动填写很困难，为何不能自动填」。此前 `usage_report.py` 的 `--pages`、`--model` 要人传；
+`local_config.json` 的 `llm.model` 字段 v2.25 就建了却从没人/机制填，等于空壳。根因：脚本层拿不到
+「当前会话主模型」——WorkBuddy 环境变量里没有主模型信息（只有 `WORKBUDDY_VLM_MODEL` 视觉模型），
+模型名只能由「派翻译子代理那一刻」的 Agent 落盘。
+
+**改动**
+
+- `usage_report.py`：`--pages` 缺省时用 PyMuPDF 从 `<work>/source.pdf` 自动数页数；`--model` 缺省时
+  按「命令行 > work/model.txt > local_config.json.llm.model」四级解析，三级全空才 `[WARN]`。
+- `pipeline.py`：`prepare` 新增 `--model`，把值写进 `<work>/model.txt`（模型名自动落盘）。
+- `SKILL.md`：新增规则 80；流水线第 10 步与交付门槛改为「页数/模型名/耗时已自动，实际费用抄账单」。
+
+**验证**
+
+- 端到端：造 7 页 PDF + `work/model.txt=hy4`，`usage_report.py` 不带参数出「原文页数 7 / 模型 hy4」，
+  无 WARN；无 PDF 时页数安全返回「未记录」不报错。
+- 黄金集 16/16 PASS（fixtures_full 全强度版）。
+
+**结论**
+
+「实际费用」是唯一无法程序化获取的一项（只有服务商账单页知道），已降到「抄一个数」的最低成本；
+页数、模型名、耗时全部自动化。换模型/换客户端后，Agent 只需在 `prepare` 时多传一个 `--model`。
+
 ## v2.25 — 2026-11-15 · 换模型/换客户端普适性：主动报用量 + 模型名进配置 + 渲染降级显式化（规则 79）
 
 **背景**

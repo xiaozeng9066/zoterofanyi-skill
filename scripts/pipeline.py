@@ -214,6 +214,12 @@ def cmd_prepare(a):
     if not meta.is_file():
         raise SystemExit("缺少 meta（术语表/标题）：%s" % meta)
 
+    # 模型名落盘：只有「派翻译子代理那一刻」的 Agent 知道当前模型，这里把它写进 work/model.txt，
+    # 后续 usage_report.py 自动读取，换模型/换客户端不靠人记得传 --model（规则 79 的落地另一半）。
+    if a.model:
+        (work / "model.txt").write_text(a.model.strip() + "\n", encoding="utf-8")
+        print("[model] 已记录本篇模型：%s" % a.model.strip())
+
     blocks = work / "blocks.json"
     regions = work / "regions.json"
     assets = work / "assets"
@@ -628,6 +634,7 @@ def main():
     p.add_argument("--layout-fix", default="", help="本篇版面修补脚本路径（在 apply_meta 之后执行）")
     p.add_argument("--no-mineru", action="store_true", help="复用已有 MinerU 输出")
     p.add_argument("--force", action="store_true", help="忽略已有输出，全部重跑")
+    p.add_argument("--model", default="", help="本篇实际用的 LLM 模型名（落盘到 work/model.txt，供用量自报自动读取）")
     p.set_defaults(func=cmd_prepare)
 
     c = sub.add_parser("check", help="合并译文 -> QA/规则 -> 审校分块与清单")

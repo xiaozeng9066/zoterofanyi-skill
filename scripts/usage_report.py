@@ -30,6 +30,44 @@ def _cfg_model() -> str | None:
     return None
 
 
+def _work_model(workdir) -> str | None:
+    """从 work 目录读「本篇实际用的模型」——由派子代理那一刻的 Agent 写进 work/model.txt，
+    换模型 / 换客户端都不靠人记得传 --model，也不靠 local_config.json 里那个没人填的字段。"""
+    for p in (Path(workdir) / "model.txt", Path(workdir) / "work" / "model.txt"):
+        try:
+            if p.is_file():
+                v = p.read_text(encoding="utf-8").strip()
+                if v:
+                    return v
+        except Exception:
+            pass
+    return None
+
+
+def _pdf_pages(workdir) -> int | None:
+    """从 work 目录自动数源 PDF 页数，免去 --pages 手动填。
+    找不到 PDF 或读不了就返回 None，交给上层按「未记录」处理，不报错。"""
+    cands = []
+    w = Path(workdir)
+    cands.append(w / "source.pdf")
+    cands.append(w / "work" / "source.pdf")
+    cands += sorted(w.glob("*.pdf")) if w.is_dir() else []
+    cands += sorted((w / "work").glob("*.pdf")) if (w / "work").is_dir() else []
+    seen = set()
+    for p in cands:
+        p = Path(p)
+        if not p.is_file() or str(p) in seen:
+            continue
+        seen.add(str(p))
+        try:
+            import fitz  # PyMuPDF（本 skill 的主工具 Python 必带）
+            with fitz.open(str(p)) as doc:
+                return doc.page_count
+        except Exception:
+            continue
+    return None
+
+
 def classify(workdir):
     """按文件名递归归类产物：chunk_/trans_/review_/fix_。
     用 os.walk 而不是 glob 的 **/dir/，因为后者要求至少一层子目录（实测漏掉平铺的 chunks/）。"""
@@ -123,12 +161,17 @@ def main():
     m_trans = a.trans_minutes if a.trans_minutes is not None else span_minutes_files(cls["trans"])
     m_review = a.review_minutes if a.review_minutes is not None else span_minutes_files(cls["fix"])
 
-    # 模型名解析顺序：命令行 > local_config.json；都没有则显式告警（换模型/换客户端后不能静默「未记录」）
-    model = a.model or _cfg_model()
+    # 页数：命令行 > 自动数 PDF；都没有则不报错、记「未记录」（页数只影响展示，不影响 token 估算）
+    pages = a.pages if a.pages else _pdf_pages(W)
+    pages_str = f"{pages}" if pages else "未记录"
+
+    # 模型名解析顺序：命令行 > work/model.txt（派子代理时自动落盘）> local_config.json.llm.model；
+    # 三级都空才显式告警（换模型/换客户端后不能静默「未记录」，否则费用单价无法按模型折算）
+    model = a.model or _work_model(W) or _cfg_model()
     if not model:
-        print("[WARN] 未提供 --model 且 local_config.json 里没有 llm.model，模型栏记为「未记录」。"
-              "换模型/换客户端后务必显式传 --model 或在 local_config.json 里配 llm.model，"
-              "否则费用单价无法按模型折算。", file=sys.stderr)
+        print("[WARN] 模型名三级探测均空（--model / work/model.txt / local_config.json 的 llm.model）。"
+              "换模型/换客户端后，请让派翻译子代理的 Agent 把当前模型写进 <work>/model.txt，"
+              "或直接 --model 显式传，否则费用单价无法按模型折算。", file=sys.stderr)
         model = "未记录"
 
     cost = None
@@ -136,7 +179,7 @@ def main():
         cost = t_in / 1e6 * a.price_in + t_out / 1e6 * a.price_out
 
     rows = [
-        ("原文页数", f"{a.pages}" if a.pages else "未记录"),
+        ("原文页数", pages_str),
         ("翻译块数", f"{tr_files}"),
         ("翻译 输入/输出", f"≈ {t_in/1000:.1f}k / {tr_out/ZH_CPT/1000:.1f}k tokens（估算）"),
         ("审校 输入/输出", f"≈ {rv_in/EN_CPT/1000:.1f}k / {rv_out/ZH_CPT/1000:.1f}k tokens（估算）"),
