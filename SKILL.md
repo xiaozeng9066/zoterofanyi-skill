@@ -781,6 +781,8 @@ Dimitrov 2026（19 页 / 11 图 3 表；翻译 11 块 + 审校 12 块；共 353 
     - 关键口径：挂回不通先 `cli status` 看 `local_api.ok`；`Local API is not enabled` = 用户
       没勾「设置 → 高级 → 允许其他应用通信」，不是网络/权限问题。写请求必须带
       `Zotero-Server-ID`（先 `GET /api/` 读）否则 `428`；一次性授权 key 收到 `401` 要重新 authorize。
+      三阶段上传的 `md5/filename/filesize/mtime` 与 `upload` 参数必须放 **form body**
+      （`application/x-www-form-urlencoded`），放 query string 会裸 500（v2.20 实测）。
     - 禁止：再靠「直接复制 xpi 进 extensions 目录」装插件——Zotero 会静默禁用，白折腾。
 
 ## 成本控制（Dimitrov 2026 实测：会话口径 ¥2.44/篇，19 页）

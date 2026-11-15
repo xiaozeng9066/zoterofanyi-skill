@@ -8,6 +8,35 @@
 > v2.2–v2.7 的完整迭代史只存于本机离线备份
 > `~/.workbuddy/backups/zoterofanyi-skill-archive-20261114.bundle`（原归档库已于 2026-11-14 删除）。
 
+## v2.20 — 2026-11-15 · 修 Local API 三阶段上传参数位置（query string → form body）
+
+**背景**
+
+v2.19 的 `zotero_api.py` 挂回时阶段①（`POST /items/<key>/file`）返回 **HTTP 500 空响应体**。
+排查：读/授权/建 item 都正常（写 key 已拿到、`POST /users/0/items` 建附件 200），
+唯独文件上传三阶段里的「授权上传」和「登记 uploadKey」两步 500。
+
+**根因**
+
+Zotero 10 Local API 的 `/items/<key>/file` 端点要求 `md5 / filename / filesize / mtime` 和
+`upload` 参数放在 **`application/x-www-form-urlencoded` 的请求体（form body）**里，
+而不是 query string。v2.19 首版用 `?md5=...&filename=...` 拼 query string，Zotero 10.0.8
+不认，直接返回裸 500（空 body，无任何错误信息）——和官方 Web API v2 文档「query string 传参」
+的旧习惯不一致，是新 Local API 与 Web API 的一个行为差异。
+
+**修复**
+
+`_attach_via_local_api` 三个阶段全部改用 form body：`urllib.parse.urlencode({...}).encode()`，
+阶段① `{md5,filename,filesize,mtime}`、阶段③ `{upload}`，均带 `Content-Type: application/x-www-form-urlencoded`。
+
+**实测**
+
+- 阶段① 200 返回 `{url, uploadKey, contentType, prefix, suffix}`；阶段② `POST url` 字节 → 201；
+  阶段③ 登记 → 204 + `Last-Modified-Version`。
+- Flamme 篇挂回成功：`attach 833HJBHS ... --replace` → `replaced:true`，附件 `JITWL335` 的 md5
+  从 `a5dad3a0...` 更新为 `6c830f03...`，与本地新 PDF 完全一致（回读校验）。
+- 踩坑点并入规则 74「关键口径」。
+
 ## v2.19 — 2026-11-15 · Zotero 挂回改走官方 Local API（规则 74）
 
 **背景**

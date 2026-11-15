@@ -365,18 +365,20 @@ def _attach_via_local_api(item_key, file_path, filename, title, replace):
         except Exception:
             raise ZoteroError("解析新附件 key 失败：%s" % raw[:300])
 
-    # 阶段①：POST /file 拿 uploadKey
-    q = "md5=%s&filename=%s&filesize=%d&mtime=%d" % (md5, urllib.request.quote(filename), fsize, mtime)
+    # 阶段①：POST /file 拿 uploadKey（参数在 form body，不是 query string，否则 Zotero 10 返回裸 500）
+    import urllib.parse as _up
+    form1 = _up.urlencode({"md5": md5, "filename": filename, "filesize": fsize,
+                           "mtime": mtime}).encode("utf-8")
     hdr1 = {"Zotero-Server-ID": sid, "Zotero-API-Key": key,
             "If-Match" if target_key else "If-None-Match": old_md5 or "*",
             "Content-Type": "application/x-www-form-urlencoded"}
-    status, hdrs, raw = _http("POST", "users/0/items/%s/file?%s" % (attach_key, q),
-                              body=b"", headers=hdr1)
+    status, hdrs, raw = _http("POST", "users/0/items/%s/file" % attach_key,
+                              body=form1, headers=hdr1)
     if status == 401:
         key, _ = _authorize_once(sid)
         hdr1["Zotero-API-Key"] = key
-        status, hdrs, raw = _http("POST", "users/0/items/%s/file?%s" % (attach_key, q),
-                                  body=b"", headers=hdr1)
+        status, hdrs, raw = _http("POST", "users/0/items/%s/file" % attach_key,
+                                  body=form1, headers=hdr1)
     if status != 200:
         raise ZoteroError("阶段①授权上传失败 HTTP %d：%s" % (status, raw[:300]))
     auth = json.loads(raw.decode("utf-8"))
@@ -398,12 +400,13 @@ def _attach_via_local_api(item_key, file_path, filename, title, replace):
     except urllib.error.HTTPError as e:
         raise ZoteroError("阶段②上传失败 HTTP %d：%s" % (e.code, e.read()[:300]))
 
-    # 阶段③：登记 uploadKey
+    # 阶段③：登记 uploadKey（upload 参数同样放 form body）
+    form3 = _up.urlencode({"upload": auth["uploadKey"]}).encode("utf-8")
     hdr3 = {"Zotero-Server-ID": sid, "Zotero-API-Key": key,
-            "If-Match" if target_key else "If-None-Match": old_md5 or "*"}
-    status, hdrs, raw = _http("POST",
-                              "users/0/items/%s/file?upload=%s" % (attach_key, auth["uploadKey"]),
-                              body=b"", headers=hdr3)
+            "If-Match" if target_key else "If-None-Match": old_md5 or "*",
+            "Content-Type": "application/x-www-form-urlencoded"}
+    status, hdrs, raw = _http("POST", "users/0/items/%s/file" % attach_key,
+                              body=form3, headers=hdr3)
     if status not in (200, 204):
         raise ZoteroError("阶段③登记失败 HTTP %d：%s" % (status, raw[:300]))
     return {"ok": True, "via": "local-api", "attachment_key": attach_key,
